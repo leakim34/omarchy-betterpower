@@ -38,7 +38,7 @@ Panel {
   readonly property bool cursorActive: cursorRow >= 0
   readonly property int cursorSource: cursorActive ? Math.floor(cursorRow / rowsPerSource) : -1
   readonly property int cursorKind: cursorActive ? cursorRow % rowsPerSource : -1
-  readonly property var delayFields: ["screensaver", "lock"]
+  readonly property var delayFields: ["screensaver", "lock", "sleep"]
   property var delayControls: ({})
 
   function registerDelayControl(sourceIndex, fieldIndex, item) {
@@ -150,7 +150,7 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(400))
+    contentWidth: panel.fittedContentWidth(Style.space(440))
     contentHeight: panel.fittedContentHeight(column.implicitHeight)
 
     PanelKeyCatcher {
@@ -265,9 +265,14 @@ Panel {
                   readonly property string field: String(modelData)
                   readonly property string key: Model.sourceKey(sourceSection.src, field)
                   width: delayRow.cellWidth
-                  label: field === "screensaver" ? "Screensaver after" : "Lock after"
+                  readonly property bool lockNever: field === "sleep" && root.settingsView[Model.sourceKey(sourceSection.src, "lock")] === Model.NEVER
+                  label: field === "screensaver" ? "Screensaver" : (field === "lock" ? "Lock" : "Sleep after lock")
+                  // Sleep is armed only after the lock fired: with lock never it
+                  // cannot happen, so the control is shown but disabled.
+                  enabled: !lockNever
+                  opacity: lockNever ? 0.45 : 1
                   options: Model.delayOptions(root.settingsView[key])
-                  value: String(root.settingsView[key])
+                  value: String(lockNever ? Model.NEVER : root.settingsView[key])
                   foreground: root.foreground
                   accent: Color.accent
                   fontFamily: root.fontFamily
