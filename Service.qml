@@ -102,6 +102,7 @@ Item {
     };
     settled = true;
     resolveServices();
+    refreshCharge();
     log("settled", "source=" + source + " profile=" + strategy.profile + " idle=" + JSON.stringify(appliedIdle));
   }
 
@@ -279,6 +280,62 @@ Item {
     }
   }
 
+  // ------------------------------------------------------------ charge limit
+
+  // Quickshell's UPower module does not expose the charge threshold
+  // properties, so they are read over D-Bus. UPower's EnableChargeThreshold
+  // is allowed for the active session by polkit, so no prompt and no root.
+  property var chargeState: ({
+      supported: false,
+      settings: 0,
+      enabled: false,
+      start: 0,
+      end: 0
+    })
+  readonly property var chargeCapability: Model.chargeCapability(chargeState)
+  readonly property bool chargeLimitEnabled: !!chargeState.enabled
+  property bool chargeBusy: false
+
+  readonly property string chargeProbeScript: ['dev=$(upower -e 2>/dev/null | grep -m1 BAT) || exit 0', '[ -n "$dev" ] || exit 0', 'get() { busctl get-property org.freedesktop.UPower "$dev" org.freedesktop.UPower.Device "$1" 2>/dev/null | cut -d" " -f2; }', 'printf "supported\t%s\n" "$(get ChargeThresholdSupported)"', 'printf "settings\t%s\n" "$(get ChargeThresholdSettingsSupported)"', 'printf "enabled\t%s\n" "$(get ChargeThresholdEnabled)"', 'printf "start\t%s\n" "$(get ChargeStartThreshold)"', 'printf "end\t%s\n" "$(get ChargeEndThreshold)"'].join("\n")
+
+  function refreshCharge() {
+    if (!chargeProc.running)
+      chargeProc.running = true;
+  }
+
+  Process {
+    id: chargeProc
+    command: ["bash", "-c", root.chargeProbeScript]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var next = Model.parseChargeState(text);
+        if (JSON.stringify(next) !== JSON.stringify(root.chargeState))
+          root.chargeState = next;
+      }
+    }
+  }
+
+  function setChargeLimit(enabled) {
+    if (!chargeCapability.available || chargeSetProc.running)
+      return;
+    var value = !!enabled;
+    chargeBusy = true;
+    log("charge-limit", value ? "enable" : "disable");
+    chargeSetProc.command = ["bash", "-c", 'dev=$(upower -e 2>/dev/null | grep -m1 BAT) && busctl call org.freedesktop.UPower "$dev" org.freedesktop.UPower.Device EnableChargeThreshold b "$1"', "_", value ? "true" : "false"];
+    chargeSetProc.running = true;
+  }
+
+  Process {
+    id: chargeSetProc
+    onExited: function (exitCode) {
+      root.chargeBusy = false;
+      if (exitCode !== 0)
+        root.log("charge-limit-failed", "exit " + exitCode);
+      root.refreshCharge();
+    }
+  }
+
   // -------------------------------------------------------------------- idle
 
   // Looked up at call time: the first-party idle service may mount after us.
@@ -334,6 +391,8 @@ Item {
       strategy: root.strategy,
       appliedProfile: root.appliedProfile,
       appliedIdle: root.appliedIdle,
+      charge: root.chargeState,
+      chargeCapability: root.chargeCapability,
       lockService: !!root.lockService,
       locked: root.locked,
       sleepArmed: root.sleepArmed,
@@ -345,6 +404,7 @@ Item {
 
   onSourceChanged: {
     log("source", source);
+    refreshCharge();
     // The first-party battery service re-applies the persisted profile on a
     // source switch; ours makes sure the persisted values and idle timings
     // match this source's strategy.

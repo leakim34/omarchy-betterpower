@@ -30,14 +30,21 @@ Panel {
   readonly property var profileOptions: Model.profileOptions(profiles)
   readonly property var settingsView: Model.normalizeSettings(root.settings, profiles)
 
-  // Keyboard cursor over a grid: each source owns two rows, its profile
-  // buttons then its delay dropdowns. -1 means the cursor is parked.
+  readonly property var chargeCapability: service ? service.chargeCapability : Model.chargeCapability(null)
+  readonly property bool chargeLimitEnabled: service ? service.chargeLimitEnabled : false
+  readonly property bool chargeBusy: service ? service.chargeBusy : false
+
+  // Keyboard cursor over a grid. Row 0 is the protection toggle (when shown),
+  // then each source owns two rows: profile buttons, delay dropdowns.
+  // -1 means the cursor is parked.
   readonly property int rowsPerSource: 2
+  readonly property int headRows: chargeCapability.available ? 1 : 0
   property int cursorRow: -1
   property int cursorIndex: 0
   readonly property bool cursorActive: cursorRow >= 0
-  readonly property int cursorSource: cursorActive ? Math.floor(cursorRow / rowsPerSource) : -1
-  readonly property int cursorKind: cursorActive ? cursorRow % rowsPerSource : -1
+  readonly property bool cursorOnCharge: cursorActive && cursorRow < headRows
+  readonly property int cursorSource: cursorActive && !cursorOnCharge ? Math.floor((cursorRow - headRows) / rowsPerSource) : -1
+  readonly property int cursorKind: cursorActive && !cursorOnCharge ? (cursorRow - headRows) % rowsPerSource : -1
   readonly property var delayFields: ["screensaver", "lock", "sleep"]
   property var delayControls: ({})
 
@@ -50,7 +57,14 @@ Panel {
   }
 
   function rowLength(row) {
-    return row % rowsPerSource === 0 ? profileOptions.length : delayFields.length;
+    if (row < headRows)
+      return 1;
+    return (row - headRows) % rowsPerSource === 0 ? profileOptions.length : delayFields.length;
+  }
+
+  function setChargeLimit(enabled) {
+    if (service)
+      service.setChargeLimit(enabled);
   }
 
   readonly property string heroMeta: {
@@ -77,9 +91,9 @@ Panel {
   }
 
   function moveCursor(dx, dy) {
-    var rows = Model.SOURCES.length * rowsPerSource;
+    var rows = headRows + Model.SOURCES.length * rowsPerSource;
     if (!cursorActive) {
-      cursorRow = Model.SOURCES.indexOf(source) * rowsPerSource;
+      cursorRow = headRows + Model.SOURCES.indexOf(source) * rowsPerSource;
       cursorIndex = Math.max(0, profileOptions.map(function (o) {
         return o.value;
       }).indexOf(settingsView[Model.sourceKey(source, "profile")]));
@@ -96,6 +110,10 @@ Panel {
   function activateCursor() {
     if (!cursorActive)
       return;
+    if (cursorOnCharge) {
+      setChargeLimit(!chargeLimitEnabled);
+      return;
+    }
     if (cursorKind === 0) {
       if (cursorIndex < profileOptions.length)
         setProfile(Model.SOURCES[cursorSource], profileOptions[cursorIndex].value);
@@ -135,12 +153,18 @@ Panel {
       root.setDelay(source, field, seconds);
       return root.statusJson();
     }
+    function setChargeLimit(enabled: string): string {
+      root.setChargeLimit(enabled === "true");
+      return root.statusJson();
+    }
   }
 
   onOpenedChanged: {
     cursorRow = -1;
-    if (opened && service)
+    if (opened && service) {
       service.refreshProfiles();
+      service.refreshCharge();
+    }
   }
 
   KeyboardPanel {
@@ -187,6 +211,42 @@ Panel {
               font.pixelSize: Style.font.display
             }
           }
+        }
+
+        PanelSeparator {
+          foreground: root.foreground
+        }
+
+        Toggle {
+          visible: root.chargeCapability.available
+          width: parent.width
+          label: "Battery protection"
+          description: root.chargeCapability.description
+          foreground: root.foreground
+          accent: Color.accent
+          fontFamily: root.fontFamily
+          checked: root.chargeLimitEnabled
+          enabled: !root.chargeBusy
+          hasCursor: root.cursorOnCharge
+          onClicked: root.setChargeLimit(!root.chargeLimitEnabled)
+          onHovered: function (h) {
+            if (h) {
+              root.cursorRow = 0;
+              root.cursorIndex = 0;
+            }
+          }
+        }
+
+        Text {
+          visible: !root.chargeCapability.available
+          textFormat: Text.PlainText
+          width: parent.width
+          wrapMode: Text.Wrap
+          text: "Battery protection: " + root.chargeCapability.description
+          color: root.foreground
+          opacity: 0.6
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.bodySmall
         }
 
         PanelSeparator {
