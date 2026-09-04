@@ -8,6 +8,14 @@ import "Model.js" as Model
 // service. It owns every side effect (processes, D-Bus, inhibitors) and is the
 // single writer of the plugin's settings; the panel only reads its state and
 // calls its functions.
+//
+// Three rules keep it from fighting the shell:
+// - Nothing is written before the settle period after startup has passed;
+//   the state files, shell.json and the stay-awake file already hold what was
+//   applied last time.
+// - Settings are read from the shell's live config in a change handler, not a
+//   binding, because every write below changes that config.
+// - Syncs run through Qt.callLater so a write never re-enters itself.
 Item {
   id: root
 
@@ -22,17 +30,15 @@ Item {
   readonly property var device: UPower.displayDevice
   readonly property bool batteryPresent: !!(device && device.isPresent)
 
-  // Raw settings as stored on the plugin's shell.json entry. The bar widget
-  // pushes its copy here on every change so both sides normalize one object.
   property var rawSettings: ({})
   property var profiles: []
   property string activeProfile: ""
   readonly property var settings: Model.normalizeSettings(rawSettings, profiles)
   readonly property var strategy: Model.strategyFor(source, settings)
 
-  // Profile last applied per source, so a settings change for the current
-  // source applies once and a change for the other source only persists.
+  property bool settled: false
   property var appliedProfile: ({})
+  property var appliedIdle: null
   property var queue: []
   property string lastEvent: "starting"
   property string lastEventAt: ""
@@ -46,24 +52,13 @@ Item {
 
   // ---------------------------------------------------------------- settings
 
-  // The first injection is the state the user already chose: remember it as
-  // applied so startup stays silent. Later injections come from edits (the
-  // shell settings screen or our own saves) and are synced.
-  property bool settingsLoaded: false
-
-  function updateSettings(next) {
-    rawSettings = next && typeof next === "object" ? next : ({});
-    if (!settingsLoaded) {
-      settingsLoaded = true;
-      rememberApplied();
-    }
-  }
-
-  function rememberApplied() {
-    var applied = {};
-    for (var i = 0; i < Model.SOURCES.length; i++)
-      applied[Model.SOURCES[i]] = settings[Model.sourceKey(Model.SOURCES[i], "profile")];
-    appliedProfile = applied;
+  function readSettings() {
+    var entry = shell ? Model.findEntry(shell.shellConfig, pluginId) : null;
+    var next = entry || ({});
+    if (JSON.stringify(next) === JSON.stringify(rawSettings))
+      return;
+    rawSettings = next;
+    scheduleSync();
   }
 
   function saveSettings(patch) {
@@ -72,11 +67,69 @@ Item {
       merged[k] = rawSettings[k];
     for (var p in patch)
       merged[p] = patch[p];
-    rawSettings = merged;
     if (shell && typeof shell.updateEntryInline === "function")
       shell.updateEntryInline(pluginId, merged);
     else
       log("settings-not-persisted", "shell has no updateEntryInline");
+  }
+
+  Connections {
+    target: root.shell
+    function onShellConfigChanged() {
+      root.readSettings();
+    }
+  }
+
+  // Remember what is already in effect, then start syncing on changes.
+  function settle() {
+    if (settled)
+      return;
+    readSettings();
+    var applied = {};
+    for (var i = 0; i < Model.SOURCES.length; i++)
+      applied[Model.SOURCES[i]] = settings[Model.sourceKey(Model.SOURCES[i], "profile")];
+    appliedProfile = applied;
+    var config = shell && shell.shellConfig ? shell.shellConfig : null;
+    var idle = config && config.idle && typeof config.idle === "object" ? config.idle : {};
+    var idleService = idleServiceNow();
+    appliedIdle = {
+      // Raw numbers, not normalizeDelay: the never sentinel sits above the
+      // range user settings are clamped to.
+      screensaver: Number(idle.screensaver),
+      lock: Number(idle.lock),
+      stayAwake: idleService ? !!idleService.stayAwake : false
+    };
+    settled = true;
+    log("settled", "source=" + source + " profile=" + strategy.profile + " idle=" + JSON.stringify(appliedIdle));
+  }
+
+  Timer {
+    id: settleTimer
+    interval: 2000
+    repeat: false
+    onTriggered: root.settle()
+  }
+
+  // ------------------------------------------------------------------- sync
+
+  property bool syncScheduled: false
+
+  function scheduleSync() {
+    if (!settled || syncScheduled)
+      return;
+    syncScheduled = true;
+    Qt.callLater(root.syncAll);
+  }
+
+  function syncAll() {
+    syncScheduled = false;
+    if (!settled)
+      return;
+    // An entry that is gone means the plugin was disabled: write nothing.
+    if (!shell || !Model.findEntry(shell.shellConfig, pluginId))
+      return;
+    syncProfiles();
+    syncIdle();
   }
 
   // --------------------------------------------------------------- processes
@@ -142,7 +195,6 @@ Item {
     var patch = {};
     patch[key] = value;
     saveSettings(patch);
-    syncProfile(src);
   }
 
   // Applies the configured profile for `src` when it is the current source, or
@@ -170,17 +222,61 @@ Item {
       syncProfile(Model.SOURCES[i]);
   }
 
+  // -------------------------------------------------------------------- idle
+
+  // Looked up at call time: the first-party idle service may mount after us.
+  function idleServiceNow() {
+    return shell && typeof shell.serviceFor === "function" ? shell.serviceFor("omarchy.idle") : null;
+  }
+
+  // Writes the current strategy's timings into shell.json, which the
+  // first-party idle service reads live, and flips stay-awake when the
+  // strategy has nothing to fire. Nothing is written when nothing changed.
+  function syncIdle() {
+    var target = Model.idleConfigFor(strategy);
+    if (Model.sameIdleConfig(appliedIdle, target))
+      return;
+    appliedIdle = target;
+    if (shell && typeof shell.mutateShellConfig === "function") {
+      shell.mutateShellConfig(function (config) {
+        var idle = config.idle && typeof config.idle === "object" ? config.idle : {};
+        idle.screensaver = target.screensaver;
+        idle.lock = target.lock;
+        config.idle = idle;
+      });
+    } else {
+      log("idle-not-persisted", "shell has no mutateShellConfig");
+    }
+    var idleService = idleServiceNow();
+    if (idleService && typeof idleService.setIdleEnabled === "function")
+      idleService.setIdleEnabled(!target.stayAwake);
+    else
+      log("idle-service-missing", "stay-awake not applied");
+    log("idle", source + " screensaver=" + target.screensaver + " lock=" + target.lock + " stayAwake=" + target.stayAwake);
+  }
+
+  function setDelay(src, field, seconds) {
+    if (["screensaver", "lock", "sleep"].indexOf(field) === -1)
+      return;
+    var key = Model.sourceKey(src, field);
+    var patch = {};
+    patch[key] = Model.normalizeDelay(seconds, settings[key]);
+    saveSettings(patch);
+  }
+
   // ------------------------------------------------------------------ status
 
   function statusJson() {
     return JSON.stringify({
       source: root.source,
       batteryPresent: root.batteryPresent,
+      settled: root.settled,
       profiles: root.profiles,
       activeProfile: root.activeProfile,
       settings: root.settings,
       strategy: root.strategy,
       appliedProfile: root.appliedProfile,
+      appliedIdle: root.appliedIdle,
       queue: root.queue.length,
       lastEvent: root.lastEvent,
       lastEventAt: root.lastEventAt
@@ -190,16 +286,17 @@ Item {
   onSourceChanged: {
     log("source", source);
     // The first-party battery service re-applies the persisted profile on a
-    // source switch; ours only makes sure the persisted value is current.
-    syncProfiles();
+    // source switch; ours makes sure the persisted values and idle timings
+    // match this source's strategy.
+    scheduleSync();
   }
-  onSettingsChanged: if (root.settingsLoaded)
-    syncProfiles()
+
+  onShellChanged: readSettings()
 
   Component.onCompleted: {
-    // Startup is silent: remember what is configured without applying it.
-    rememberApplied();
+    readSettings();
     refreshProfiles();
+    settleTimer.start();
     log("service-ready", "source=" + source);
   }
 }
