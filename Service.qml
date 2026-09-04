@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
+import Quickshell.Wayland
 import "Model.js" as Model
 
 // Policy engine for leakz.power. Loaded by the shell at startup as a headless
@@ -100,6 +101,7 @@ Item {
       stayAwake: idleService ? !!idleService.stayAwake : false
     };
     settled = true;
+    resolveServices();
     log("settled", "source=" + source + " profile=" + strategy.profile + " idle=" + JSON.stringify(appliedIdle));
   }
 
@@ -222,6 +224,61 @@ Item {
       syncProfile(Model.SOURCES[i]);
   }
 
+  // ------------------------------------------------------------------- sleep
+
+  // The first-party lock service may mount after us, so it is looked up
+  // until found rather than bound once.
+  property var lockService: null
+  readonly property bool locked: lockService ? !!lockService.locked : false
+  readonly property bool sleepArmed: settled && locked && strategy.sleep > 0
+
+  function resolveServices() {
+    if (!lockService && shell && typeof shell.serviceFor === "function")
+      lockService = shell.serviceFor("omarchy.lock");
+    if (!lockService)
+      serviceLookupTimer.start();
+  }
+
+  Timer {
+    id: serviceLookupTimer
+    interval: 5000
+    repeat: false
+    onTriggered: root.resolveServices()
+  }
+
+  // Armed only while the session is locked: the delay counts from the lock
+  // and from the last input on the lock screen, and idle inhibitors (a
+  // download, a video) hold it off like they hold off the lock itself.
+  IdleMonitor {
+    id: sleepMonitor
+    enabled: root.sleepArmed
+    timeout: Math.max(1, root.strategy.sleep)
+    respectInhibitors: true
+    onIsIdleChanged: {
+      if (isIdle && enabled)
+        root.suspend("sleep-after-lock " + root.strategy.sleep + "s");
+    }
+  }
+
+  onLockedChanged: log("lock", locked ? "locked" : "unlocked")
+  onSleepArmedChanged: log("sleep", sleepArmed ? "armed " + strategy.sleep + "s" : "disarmed")
+
+  function suspend(reason) {
+    if (sleepProc.running)
+      return;
+    log("suspend", reason);
+    sleepProc.command = ["systemctl", "suspend"];
+    sleepProc.running = true;
+  }
+
+  Process {
+    id: sleepProc
+    onExited: function (exitCode) {
+      if (exitCode !== 0)
+        root.log("suspend-failed", "exit " + exitCode);
+    }
+  }
+
   // -------------------------------------------------------------------- idle
 
   // Looked up at call time: the first-party idle service may mount after us.
@@ -277,6 +334,9 @@ Item {
       strategy: root.strategy,
       appliedProfile: root.appliedProfile,
       appliedIdle: root.appliedIdle,
+      lockService: !!root.lockService,
+      locked: root.locked,
+      sleepArmed: root.sleepArmed,
       queue: root.queue.length,
       lastEvent: root.lastEvent,
       lastEventAt: root.lastEventAt
