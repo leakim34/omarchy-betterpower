@@ -9,6 +9,7 @@ test("defaults apply when settings are missing or garbage", () => {
   assert.equal(s.batteryLock, M.DEFAULTS.batteryLock);
   assert.equal(s.acProfile, M.DEFAULTS.acProfile);
   assert.equal(s.clamshell, M.DEFAULTS.clamshell);
+  assert.equal("chargeLimit" in s, false);
   assert.equal(s.batterySleep, M.DEFAULTS.batterySleep);
 });
 
@@ -95,4 +96,25 @@ test("finds the plugin entry in the bar layout or the plugins list", () => {
   assert.equal(M.findEntry({ plugins: [{ id: "leakz.power", acLock: 9 }] }, "leakz.power").acLock, 9);
   assert.equal(M.findEntry({}, "leakz.power"), null);
   assert.equal(M.findEntry(null, "leakz.power"), null);
+});
+
+test("charge state parses busctl lines and tolerates garbage", () => {
+  const st = M.parseChargeState("supported\ttrue\nsettings\t4\nenabled\tfalse\nstart\t0\nend\t0\n");
+  assert.deepEqual(st, { supported: true, settings: 4, enabled: false, start: 0, end: 0 });
+  assert.deepEqual(M.parseChargeState(""), { supported: false, settings: 0, enabled: false, start: 0, end: 0 });
+  assert.equal(M.parseChargeState("settings\tabc\n").settings, 0);
+});
+
+test("charge capability follows the settings bitmask", () => {
+  assert.equal(M.chargeCapability({ supported: false, settings: 4 }).available, false);
+  assert.equal(M.chargeCapability({ supported: true, settings: 0 }).available, false);
+  const fw = M.chargeCapability({ supported: true, settings: 4, enabled: true });
+  assert.equal(fw.mode, "firmware");
+  const th = M.chargeCapability({ supported: true, settings: 2, enabled: true, end: 80 });
+  assert.equal(th.mode, "threshold");
+  assert.match(th.description, /80%/);
+  const both = M.chargeCapability({ supported: true, settings: 3, enabled: true, start: 60, end: 80 });
+  assert.match(both.description, /60% and 80%/);
+  assert.match(M.chargeCapability({ supported: true, settings: 2, enabled: false }).description, /before full/);
+  assert.equal(M.chargeCapability(null).available, false);
 });

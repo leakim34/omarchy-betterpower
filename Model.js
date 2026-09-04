@@ -23,8 +23,7 @@ var DEFAULTS = {
   acScreensaver: NEVER,
   acLock: NEVER,
   acSleep: NEVER,
-  clamshell: true,
-  chargeLimit: false
+  clamshell: true
 }
 
 // The plugin's own entry in shell.json: a bar layout item or a plugins[]
@@ -96,7 +95,6 @@ function normalizeSettings(raw, available) {
     }
   }
   out.clamshell = normalizeBool(s.clamshell, DEFAULTS.clamshell)
-  out.chargeLimit = normalizeBool(s.chargeLimit, DEFAULTS.chargeLimit)
   return out
 }
 
@@ -126,6 +124,52 @@ function idleConfigFor(strategy) {
 function sameIdleConfig(a, b) {
   if (!a || !b) return false
   return a.screensaver === b.screensaver && a.lock === b.lock && a.stayAwake === b.stayAwake
+}
+
+// UPower's ChargeThresholdSettingsSupported bitmask.
+var CHARGE_START = 1
+var CHARGE_END = 2
+var CHARGE_FIRMWARE = 4
+
+// Output of the charge probe script: "key\tvalue" lines from busctl.
+function parseChargeState(raw) {
+  var out = { supported: false, settings: 0, enabled: false, start: 0, end: 0 }
+  var lines = String(raw || "").split("\n")
+  for (var i = 0; i < lines.length; i++) {
+    var parts = lines[i].split("\t")
+    var key = String(parts[0] || "").trim()
+    var value = String(parts[1] || "").trim()
+    if (key === "supported") out.supported = value === "true"
+    else if (key === "settings") out.settings = Number(value) || 0
+    else if (key === "enabled") out.enabled = value === "true"
+    else if (key === "start") out.start = Number(value) || 0
+    else if (key === "end") out.end = Number(value) || 0
+  }
+  return out
+}
+
+// What the panel shows for a charge state: whether the control exists and
+// how to describe what enabling it does on this hardware.
+function chargeCapability(state) {
+  var s = state || {}
+  var mask = Number(s.settings) || 0
+  var firmware = (mask & CHARGE_FIRMWARE) !== 0
+  var end = (mask & CHARGE_END) !== 0
+  var start = (mask & CHARGE_START) !== 0
+  if (!s.supported || (!firmware && !end)) {
+    return { available: false, mode: "none", description: "This battery does not report charge control." }
+  }
+  if (end) {
+    var range = s.enabled && Number(s.end) > 0
+      ? (start && Number(s.start) > 0 ? "Charges between " + s.start + "% and " + s.end + "%." : "Charging stops at " + s.end + "%.")
+      : "Stops charging before full to preserve battery life."
+    return { available: true, mode: "threshold", description: range }
+  }
+  return {
+    available: true,
+    mode: "firmware",
+    description: "The firmware limits the charge to preserve battery life (conservation mode)."
+  }
 }
 
 function delayLabel(seconds) {
@@ -194,6 +238,11 @@ if (typeof module !== "undefined") {
     DELAY_PRESETS: DELAY_PRESETS,
     NEVER_IDLE_SECONDS: NEVER_IDLE_SECONDS,
     idleConfigFor: idleConfigFor,
+    CHARGE_START: CHARGE_START,
+    CHARGE_END: CHARGE_END,
+    CHARGE_FIRMWARE: CHARGE_FIRMWARE,
+    parseChargeState: parseChargeState,
+    chargeCapability: chargeCapability,
     sameIdleConfig: sameIdleConfig,
     DEFAULTS: DEFAULTS,
     findEntry: findEntry,
