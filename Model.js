@@ -172,6 +172,30 @@ function chargeCapability(state) {
   }
 }
 
+// Internal panels are eDP, LVDS or DSI connectors; anything else is external.
+function isExternalScreen(name) {
+  return !/^(eDP|LVDS|DSI)-/i.test(String(name || ""))
+}
+
+function hasExternalScreen(names) {
+  var list = Array.isArray(names) ? names : []
+  for (var i = 0; i < list.length; i++) {
+    if (isExternalScreen(list[i])) return true
+  }
+  return false
+}
+
+// Whether the lid inhibitor must be held, and the sentence the panel shows.
+function lidBehavior(clamshell, external) {
+  if (!external) {
+    return { inhibit: false, description: "No external screen: closing the lid locks and follows the system's lid setting." }
+  }
+  if (clamshell) {
+    return { inhibit: true, description: "Closing the lid keeps the session running on the external screen." }
+  }
+  return { inhibit: false, description: "Closing the lid follows the system's lid setting." }
+}
+
 function delayLabel(seconds) {
   var n = normalizeDelay(seconds, NEVER)
   if (n === NEVER) return "Never"
@@ -241,6 +265,9 @@ if (typeof module !== "undefined") {
     CHARGE_START: CHARGE_START,
     CHARGE_END: CHARGE_END,
     CHARGE_FIRMWARE: CHARGE_FIRMWARE,
+    isExternalScreen: isExternalScreen,
+    hasExternalScreen: hasExternalScreen,
+    lidBehavior: lidBehavior,
     parseChargeState: parseChargeState,
     chargeCapability: chargeCapability,
     sameIdleConfig: sameIdleConfig,

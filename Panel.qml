@@ -33,16 +33,22 @@ Panel {
   readonly property var chargeCapability: service ? service.chargeCapability : Model.chargeCapability(null)
   readonly property bool chargeLimitEnabled: service ? service.chargeLimitEnabled : false
   readonly property bool chargeBusy: service ? service.chargeBusy : false
+  readonly property bool externalScreen: service ? service.externalScreen : false
+  readonly property var lidBehavior: service ? service.lidBehavior : Model.lidBehavior(false, false)
 
   // Keyboard cursor over a grid. Row 0 is the protection toggle (when shown),
   // then each source owns two rows: profile buttons, delay dropdowns.
   // -1 means the cursor is parked.
   readonly property int rowsPerSource: 2
-  readonly property int headRows: chargeCapability.available ? 1 : 0
+  // Head controls in order: charge toggle when available, then clamshell.
+  readonly property var headKeys: chargeCapability.available ? ["charge", "clamshell"] : ["clamshell"]
+  readonly property int headRows: headKeys.length
   property int cursorRow: -1
   property int cursorIndex: 0
   readonly property bool cursorActive: cursorRow >= 0
-  readonly property bool cursorOnCharge: cursorActive && cursorRow < headRows
+  readonly property string cursorHead: cursorActive && cursorRow < headRows ? headKeys[cursorRow] : ""
+  readonly property bool cursorOnCharge: cursorHead === "charge"
+  readonly property bool cursorOnClamshell: cursorHead === "clamshell"
   readonly property int cursorSource: cursorActive && !cursorOnCharge ? Math.floor((cursorRow - headRows) / rowsPerSource) : -1
   readonly property int cursorKind: cursorActive && !cursorOnCharge ? (cursorRow - headRows) % rowsPerSource : -1
   readonly property var delayFields: ["screensaver", "lock", "sleep"]
@@ -65,6 +71,11 @@ Panel {
   function setChargeLimit(enabled) {
     if (service)
       service.setChargeLimit(enabled);
+  }
+
+  function setClamshell(enabled) {
+    if (service)
+      service.setClamshell(enabled);
   }
 
   readonly property string heroMeta: {
@@ -114,6 +125,11 @@ Panel {
       setChargeLimit(!chargeLimitEnabled);
       return;
     }
+    if (cursorOnClamshell) {
+      if (externalScreen)
+        setClamshell(!settingsView.clamshell);
+      return;
+    }
     if (cursorKind === 0) {
       if (cursorIndex < profileOptions.length)
         setProfile(Model.SOURCES[cursorSource], profileOptions[cursorIndex].value);
@@ -155,6 +171,10 @@ Panel {
     }
     function setChargeLimit(enabled: string): string {
       root.setChargeLimit(enabled === "true");
+      return root.statusJson();
+    }
+    function setClamshell(enabled: string): string {
+      root.setClamshell(enabled === "true");
       return root.statusJson();
     }
   }
@@ -231,7 +251,27 @@ Panel {
           onClicked: root.setChargeLimit(!root.chargeLimitEnabled)
           onHovered: function (h) {
             if (h) {
-              root.cursorRow = 0;
+              root.cursorRow = root.headKeys.indexOf("charge");
+              root.cursorIndex = 0;
+            }
+          }
+        }
+
+        Toggle {
+          width: parent.width
+          label: "Keep running when the lid closes"
+          description: root.lidBehavior.description
+          foreground: root.foreground
+          accent: Color.accent
+          fontFamily: root.fontFamily
+          checked: root.settingsView.clamshell && root.externalScreen
+          enabled: root.externalScreen
+          opacity: root.externalScreen ? 1 : 0.55
+          hasCursor: root.cursorOnClamshell
+          onClicked: root.setClamshell(!root.settingsView.clamshell)
+          onHovered: function (h) {
+            if (h) {
+              root.cursorRow = root.headKeys.indexOf("clamshell");
               root.cursorIndex = 0;
             }
           }
