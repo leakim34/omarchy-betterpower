@@ -103,6 +103,7 @@ Item {
     settled = true;
     resolveServices();
     refreshCharge();
+    syncLidInhibit();
     log("settled", "source=" + source + " profile=" + strategy.profile + " idle=" + JSON.stringify(appliedIdle));
   }
 
@@ -280,6 +281,49 @@ Item {
     }
   }
 
+  // --------------------------------------------------------------- clamshell
+
+  // Quickshell.screens lists the enabled outputs; with the lid closed the
+  // internal panel is gone from it, so the external one is what remains.
+  readonly property var screenNames: {
+    var out = [];
+    var screens = Quickshell.screens || [];
+    for (var i = 0; i < screens.length; i++)
+      out.push(screens[i].name);
+    return out;
+  }
+  readonly property bool externalScreen: Model.hasExternalScreen(screenNames)
+  readonly property var lidBehavior: Model.lidBehavior(settings.clamshell, externalScreen)
+  // Held by a child process, so it dies with the shell and can never strand
+  // the laptop awake in a bag.
+  readonly property bool lidInhibitWanted: settled && lidBehavior.inhibit
+  readonly property bool lidInhibited: lidInhibitProc.running
+
+  Process {
+    id: lidInhibitProc
+    command: ["systemd-inhibit", "--what=handle-lid-switch", "--who=leakz.power", "--why=Clamshell: keep running with the lid closed", "--mode=block", "sleep", "infinity"]
+    onExited: function (exitCode) {
+      root.log("lid-inhibit", "released (exit " + exitCode + ")");
+    }
+  }
+
+  function syncLidInhibit() {
+    if (lidInhibitWanted && !lidInhibitProc.running) {
+      log("lid-inhibit", "held (external screen, clamshell on)");
+      lidInhibitProc.running = true;
+    } else if (!lidInhibitWanted && lidInhibitProc.running) {
+      lidInhibitProc.running = false;
+    }
+  }
+
+  onLidInhibitWantedChanged: syncLidInhibit()
+
+  function setClamshell(enabled) {
+    saveSettings({
+      clamshell: !!enabled
+    });
+  }
+
   // ------------------------------------------------------------ charge limit
 
   // Quickshell's UPower module does not expose the charge threshold
@@ -391,6 +435,10 @@ Item {
       strategy: root.strategy,
       appliedProfile: root.appliedProfile,
       appliedIdle: root.appliedIdle,
+      externalScreen: root.externalScreen,
+      screens: root.screenNames,
+      lidInhibited: root.lidInhibited,
+      lidBehavior: root.lidBehavior,
       charge: root.chargeState,
       chargeCapability: root.chargeCapability,
       lockService: !!root.lockService,
@@ -412,6 +460,11 @@ Item {
   }
 
   onShellChanged: readSettings()
+
+  Component.onDestruction: {
+    if (lidInhibitProc.running)
+      lidInhibitProc.running = false;
+  }
 
   Component.onCompleted: {
     readSettings();

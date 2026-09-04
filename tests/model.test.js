@@ -118,3 +118,20 @@ test("charge capability follows the settings bitmask", () => {
   assert.match(M.chargeCapability({ supported: true, settings: 2, enabled: false }).description, /before full/);
   assert.equal(M.chargeCapability(null).available, false);
 });
+
+test("external screens are anything but eDP, LVDS and DSI", () => {
+  assert.equal(M.isExternalScreen("eDP-1"), false);
+  assert.equal(M.isExternalScreen("LVDS-1"), false);
+  assert.equal(M.isExternalScreen("DP-1"), true);
+  assert.equal(M.isExternalScreen("HDMI-A-1"), true);
+  assert.equal(M.hasExternalScreen(["eDP-1"]), false);
+  assert.equal(M.hasExternalScreen(["eDP-1", "DP-3"]), true);
+  assert.equal(M.hasExternalScreen([]), false);
+});
+
+test("lid behavior inhibits only with the toggle on and an external screen", () => {
+  assert.equal(M.lidBehavior(true, true).inhibit, true);
+  assert.equal(M.lidBehavior(true, false).inhibit, false);
+  assert.equal(M.lidBehavior(false, true).inhibit, false);
+  assert.match(M.lidBehavior(true, false).description, /No external screen/);
+});
