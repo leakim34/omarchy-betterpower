@@ -16,7 +16,13 @@ qmlformat_bin=$(command -v qmlformat || command -v /usr/lib/qt6/bin/qmlformat ||
 mapfile -t qml_files < <(find . -name '*.qml' -not -path './.git/*' -not -path './node_modules/*')
 if (( ${#qml_files[@]} )); then
   if [[ -n $qmlformat_bin ]]; then
-    "$qmlformat_bin" --check "${qml_files[@]}" || status=1
+    # qmlformat has no --check: compare its output with the file on disk.
+    for f in "${qml_files[@]}"; do
+      if ! diff -q <("$qmlformat_bin" "$f") "$f" >/dev/null; then
+        echo "lint: $f is not qmlformat-formatted (run .kit/run format)" >&2
+        status=1
+      fi
+    done
   else
     echo "lint: qmlformat not found, QML formatting not checked" >&2
   fi

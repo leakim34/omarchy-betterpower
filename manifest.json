@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "leakz.power",
+  "name": "Power",
+  "version": "0.1.0",
+  "author": "leakz",
+  "license": "MIT",
+  "description": "Battery protection, per-power-source lock, sleep and power profile strategies, and clamshell lid control",
+  "kinds": ["bar-widget", "service"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml",
+    "service": "Service.qml"
+  },
+  "barWidget": {
+    "displayName": "Power",
+    "description": "Battery protection, per-source lock, sleep and profile strategies, clamshell",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "batteryProfile": "power-saver",
+      "batteryScreensaver": 120,
+      "batteryLock": 300,
+      "batterySleep": 600,
+      "acProfile": "performance",
+      "acScreensaver": 0,
+      "acLock": 0,
+      "acSleep": 0,
+      "clamshell": "On",
+      "chargeLimit": "Off"
+    },
+    "schema": [
+      { "key": "batteryProfile", "type": "enum", "label": "On battery: power profile", "options": ["power-saver", "balanced", "performance"], "defaultValue": "power-saver" },
+      { "key": "batteryScreensaver", "type": "integer", "label": "On battery: screensaver after (seconds, 0 = never)", "min": 0, "max": 86400, "step": 30, "defaultValue": 120 },
+      { "key": "batteryLock", "type": "integer", "label": "On battery: lock after (seconds, 0 = never)", "min": 0, "max": 86400, "step": 30, "defaultValue": 300 },
+      { "key": "batterySleep", "type": "integer", "label": "On battery: sleep after lock (seconds, 0 = never)", "min": 0, "max": 86400, "step": 30, "defaultValue": 600 },
+      { "key": "acProfile", "type": "enum", "label": "Plugged in: power profile", "options": ["power-saver", "balanced", "performance"], "defaultValue": "performance" },
+      { "key": "acScreensaver", "type": "integer", "label": "Plugged in: screensaver after (seconds, 0 = never)", "min": 0, "max": 86400, "step": 30, "defaultValue": 0 },
+      { "key": "acLock", "type": "integer", "label": "Plugged in: lock after (seconds, 0 = never)", "min": 0, "max": 86400, "step": 30, "defaultValue": 0 },
+      { "key": "acSleep", "type": "integer", "label": "Plugged in: sleep after lock (seconds, 0 = never)", "min": 0, "max": 86400, "step": 30, "defaultValue": 0 },
+      { "key": "clamshell", "type": "enum", "label": "Keep running when the lid closes on an external screen", "options": ["On", "Off"], "defaultValue": "On" },
+      { "key": "chargeLimit", "type": "enum", "label": "Battery protection (charge limit)", "options": ["Off", "On"], "defaultValue": "Off" }
+    ]
+  }
+}
