@@ -15,6 +15,13 @@ created = "2026-09-04"
 privileged = true
 
 [commands]
+install = "skip"
+test = "node --test 'tests/**/*.test.js'"
+lint = "scripts/lint.sh"
+format = "scripts/format.sh"
+typecheck = "skip"
+build = "skip"
+run = "scripts/run.sh"
 
 [files.".claude/skills/audit/SKILL.md"]
 kind = "owned"

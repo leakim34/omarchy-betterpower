@@ -2,15 +2,16 @@
 
 Omarchy shell plugin for battery protection, per-power-source lock, sleep and power profile strategies, and clamshell lid control
 
-Kind: omarchy-plugin. Stack: none. Commands run through `.kit/run <task>`, defined in `.kit.toml`.
+Kind: omarchy-plugin. Stack: QML on Quickshell, node test runner, no dependencies. Commands run through `.kit/run <task>`, defined in `.kit.toml`.
 
 | Task | Command |
 |---|---|
-| install | `not set, run /setup-stack` |
-| test | `not set, run /setup-stack` |
-| lint | `not set, run /setup-stack` |
-| format | `not set, run /setup-stack` |
-| typecheck | `not set, run /setup-stack` |
+| install | `skip` (no dependencies) |
+| test | `node --test 'tests/**/*.test.js'` |
+| lint | `scripts/lint.sh` (manifest validation, qmlformat, shellcheck) |
+| format | `scripts/format.sh` |
+| typecheck | `skip` |
+| run | `scripts/run.sh` (link into ~/.config/omarchy/plugins and rescan) |
 
 ## How we work
 
