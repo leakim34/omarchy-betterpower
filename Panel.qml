@@ -86,9 +86,15 @@ Panel {
   }
 
   function statusJson() {
-    return service ? service.statusJson() : JSON.stringify({
+    var status = service ? JSON.parse(service.statusJson()) : {
       service: "not loaded"
-    });
+    };
+    status.opened = root.opened;
+    status.cursor = {
+      row: root.cursorRow,
+      index: root.cursorIndex
+    };
+    return JSON.stringify(status);
   }
 
   function setProfile(src, value) {
@@ -338,11 +344,11 @@ Panel {
                   verticalPadding: Style.spacing.controlPaddingY + Style.spacing.xxs
                   bordered: true
                   active: root.settingsView[sourceSection.profileKey] === modelData.value
-                  hasCursor: root.cursorSource === sourceSection.index && root.cursorIndex === index
+                  hasCursor: root.cursorSource === sourceSection.index && root.cursorKind === 0 && root.cursorIndex === index
                   onClicked: root.setProfile(sourceSection.src, modelData.value)
                   onHovered: function (h) {
                     if (h) {
-                      root.cursorSource = sourceSection.index;
+                      root.cursorRow = root.headRows + sourceSection.index * root.rowsPerSource;
                       root.cursorIndex = index;
                     }
                   }
@@ -382,7 +388,7 @@ Panel {
                   }
                   onHovered: function (h) {
                     if (h) {
-                      root.cursorRow = sourceSection.index * root.rowsPerSource + 1;
+                      root.cursorRow = root.headRows + sourceSection.index * root.rowsPerSource + 1;
                       root.cursorIndex = index;
                     }
                   }

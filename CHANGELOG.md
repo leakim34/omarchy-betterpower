@@ -13,5 +13,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - Sleep after lock per source: once the session is locked, an idle monitor that respects idle inhibitors suspends the machine after the configured delay; never on a source whose lock is never (#4).
 - Battery protection toggle driven by UPower's charge threshold API, shown only when the battery reports charge control, with wording taken from what the hardware supports. IPC `setChargeLimit true|false` (#5).
 - Clamshell toggle: while on and an external screen is connected, a logind lid-switch inhibitor held by the shell keeps the session running with the lid closed; released on disconnect, disable or shell exit. IPC `setClamshell true|false` (#6).
+- Keyboard cursor over every control, IPC `status` reports the open state and cursor, preview image (#7).
 
 - Project bootstrapped with kit 0.2.0 (profile omarchy-plugin, project).
