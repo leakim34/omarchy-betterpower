@@ -61,3 +61,18 @@ test("labels and icons", () => {
   assert.equal(M.sourceKey("battery", "lock"), "batteryLock");
   assert.notEqual(M.profileIcon("performance"), M.profileIcon("balanced"));
 });
+
+test("parses the powerprofiles list with its active marker", () => {
+  const r = M.parseProfiles("power-saver\t0\nbalanced\t1\nperformance\t0\n");
+  assert.deepEqual(r, { profiles: ["power-saver", "balanced", "performance"], active: "balanced" });
+  assert.deepEqual(M.parseProfiles(""), { profiles: [], active: "" });
+  assert.deepEqual(M.parseProfiles("balanced\n"), { profiles: ["balanced"], active: "" });
+});
+
+test("profile options carry label and icon and fall back to the known set", () => {
+  const opts = M.profileOptions(["balanced", "power-saver"]);
+  assert.deepEqual(opts.map((o) => o.value), ["balanced", "power-saver"]);
+  assert.equal(opts[1].label, "Eco");
+  assert.ok(opts.every((o) => o.icon.length > 0));
+  assert.equal(M.profileOptions([]).length, M.PROFILES.length);
+});

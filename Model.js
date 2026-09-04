@@ -114,6 +114,30 @@ function delayOptions(current) {
   return out
 }
 
+// Output of `omarchy-powerprofiles-list --active-state`: one "name\t1|0" per line.
+function parseProfiles(raw) {
+  var profiles = []
+  var active = ""
+  var lines = String(raw || "").split("\n")
+  for (var i = 0; i < lines.length; i++) {
+    var parts = lines[i].split("\t")
+    var name = String(parts[0] || "").trim()
+    if (!name) continue
+    profiles.push(name)
+    if (String(parts[1] || "").trim() === "1") active = name
+  }
+  return { profiles: profiles, active: active }
+}
+
+function profileOptions(profiles) {
+  var list = Array.isArray(profiles) && profiles.length > 0 ? profiles : PROFILES
+  var out = []
+  for (var i = 0; i < list.length; i++) {
+    out.push({ value: list[i], label: profileLabel(list[i]), icon: profileIcon(list[i]) })
+  }
+  return out
+}
+
 function profileIcon(name) {
   if (name === "performance") return "󰓅"
   if (name === "power-saver") return "󰌪"
@@ -141,6 +165,8 @@ if (typeof module !== "undefined") {
     strategyFor: strategyFor,
     delayLabel: delayLabel,
     delayOptions: delayOptions,
+    parseProfiles: parseProfiles,
+    profileOptions: profileOptions,
     profileIcon: profileIcon,
     profileLabel: profileLabel
   }

@@ -10,5 +10,6 @@ Decisions only; the commands live in `.kit.toml`.
 - The version lives in `manifest.json` only. Tags `vX.Y.Z` match it.
 - Errors are logged with the `leakz.power` prefix through `console.log`, one line per event.
 - Release: bump `manifest.json` and `CHANGELOG.md` in one commit, tag, `gh release create`.
-- Local run: `.kit/run run` links the checkout into `~/.config/omarchy/plugins/` and rescans;
-  the shell then hot-reloads on every save.
+- Local run: `.kit/run run` links the checkout into `~/.config/omarchy/plugins/` and rescans,
+  which hot-reloads the bar widget only. `.kit/run run --restart` restarts the shell, needed
+  after a change to Panel.qml or Service.qml.

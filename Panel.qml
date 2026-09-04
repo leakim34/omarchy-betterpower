@@ -26,7 +26,15 @@ Panel {
   readonly property bool batteryPresent: !!(device && device.isPresent)
   readonly property string source: UPower.onBattery ? "battery" : "ac"
   readonly property int percentage: batteryPresent ? Math.round(Number(device.percentage || 0) * 100) : -1
-  readonly property var settingsView: Model.normalizeSettings(root.settings, [])
+  readonly property var profiles: service ? service.profiles : []
+  readonly property var profileOptions: Model.profileOptions(profiles)
+  readonly property var settingsView: Model.normalizeSettings(root.settings, profiles)
+
+  // Keyboard cursor: which source column and which chip inside its profile
+  // group. -1 means the cursor is parked (mouse only).
+  property int cursorSource: -1
+  property int cursorIndex: 0
+  readonly property bool cursorActive: cursorSource >= 0
 
   readonly property string heroMeta: {
     if (!batteryPresent)
@@ -39,6 +47,31 @@ Panel {
     return service ? service.statusJson() : JSON.stringify({
       service: "not loaded"
     });
+  }
+
+  function setProfile(src, value) {
+    if (service)
+      service.setProfile(src, value);
+  }
+
+  function moveCursor(dx, dy) {
+    if (!cursorActive) {
+      cursorSource = Model.SOURCES.indexOf(source);
+      cursorIndex = Math.max(0, profileOptions.map(function (o) {
+        return o.value;
+      }).indexOf(settingsView[Model.sourceKey(source, "profile")]));
+      return;
+    }
+    if (dy !== 0)
+      cursorSource = (cursorSource + (dy > 0 ? 1 : -1) + Model.SOURCES.length) % Model.SOURCES.length;
+    if (dx !== 0)
+      cursorIndex = (cursorIndex + (dx > 0 ? 1 : -1) + profileOptions.length) % profileOptions.length;
+  }
+
+  function activateCursor() {
+    if (!cursorActive || cursorIndex < 0 || cursorIndex >= profileOptions.length)
+      return;
+    setProfile(Model.SOURCES[cursorSource], profileOptions[cursorIndex].value);
   }
 
   IpcHandler {
@@ -62,10 +95,19 @@ Panel {
     function status(): string {
       return root.statusJson();
     }
+    function setProfile(source: string, profile: string): string {
+      root.setProfile(source, profile);
+      return root.statusJson();
+    }
   }
 
   onSettingsChanged: if (service)
     service.updateSettings(root.settings)
+  onOpenedChanged: {
+    cursorSource = -1;
+    if (opened && service)
+      service.refreshProfiles();
+  }
 
   KeyboardPanel {
     id: panel
@@ -74,12 +116,16 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(420))
+    contentWidth: panel.fittedContentWidth(Style.space(400))
     contentHeight: panel.fittedContentHeight(column.implicitHeight)
 
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
+      onMoveRequested: function (dx, dy) {
+        root.moveCursor(dx, dy);
+      }
+      onActivateRequested: root.activateCursor()
       onCloseRequested: root.close()
       onTabRequested: function (direction) {
         root.switchPanel(direction);
@@ -113,35 +159,72 @@ Panel {
           foreground: root.foreground
         }
 
-        Row {
-          width: parent.width
-          spacing: Style.spacing.panelGap
+        Repeater {
+          model: Model.SOURCES
+          Column {
+            id: sourceSection
+            required property var modelData
+            required property int index
+            readonly property string src: String(modelData)
+            readonly property bool current: root.source === src
+            readonly property string profileKey: Model.sourceKey(src, "profile")
+            width: parent.width
+            spacing: Style.spacing.rowGap
 
-          Repeater {
-            model: Model.SOURCES
-            Column {
-              required property var modelData
-              readonly property string src: String(modelData)
-              readonly property bool current: root.source === src
-              width: (parent.width - parent.spacing) / 2
-              spacing: Style.spacing.labelGap
+            PanelSeparator {
+              visible: sourceSection.index > 0
+              foreground: root.foreground
+            }
 
-              PanelSectionHeader {
-                text: Model.sourceLabel(src).toUpperCase() + (current ? "  ·  NOW" : "")
-                foreground: root.foreground
-                fontFamily: root.fontFamily
+            PanelSectionHeader {
+              text: Model.sourceLabel(sourceSection.src).toUpperCase() + (sourceSection.current ? "  ·  NOW" : "")
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+            }
+
+            Row {
+              id: profileRow
+              width: parent.width
+              spacing: Style.spacing.md
+              readonly property real cellWidth: root.profileOptions.length > 0 ? (width - spacing * (root.profileOptions.length - 1)) / root.profileOptions.length : 0
+
+              Repeater {
+                model: root.profileOptions
+                Button {
+                  required property var modelData
+                  required property int index
+                  width: profileRow.cellWidth
+                  iconText: modelData.icon
+                  iconSize: Style.font.title
+                  text: modelData.label
+                  fontSize: Style.font.bodySmall
+                  foreground: root.foreground
+                  fontFamily: root.fontFamily
+                  horizontalPadding: Style.spacing.controlPaddingX
+                  verticalPadding: Style.spacing.controlPaddingY + Style.spacing.xxs
+                  bordered: true
+                  active: root.settingsView[sourceSection.profileKey] === modelData.value
+                  hasCursor: root.cursorSource === sourceSection.index && root.cursorIndex === index
+                  onClicked: root.setProfile(sourceSection.src, modelData.value)
+                  onHovered: function (h) {
+                    if (h) {
+                      root.cursorSource = sourceSection.index;
+                      root.cursorIndex = index;
+                    }
+                  }
+                }
               }
+            }
 
-              Text {
-                textFormat: Text.PlainText
-                width: parent.width
-                wrapMode: Text.Wrap
-                text: Model.profileLabel(root.settingsView[Model.sourceKey(src, "profile")]) + " · lock " + Model.delayLabel(root.settingsView[Model.sourceKey(src, "lock")]).toLowerCase() + " · sleep " + Model.delayLabel(Model.strategyFor(src, root.settingsView).sleep).toLowerCase()
-                color: root.foreground
-                opacity: 0.7
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.bodySmall
-              }
+            Text {
+              textFormat: Text.PlainText
+              width: parent.width
+              wrapMode: Text.Wrap
+              text: "Lock " + Model.delayLabel(root.settingsView[Model.sourceKey(sourceSection.src, "lock")]).toLowerCase() + " · sleep " + Model.delayLabel(Model.strategyFor(sourceSection.src, root.settingsView).sleep).toLowerCase()
+              color: root.foreground
+              opacity: 0.7
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
             }
           }
         }
