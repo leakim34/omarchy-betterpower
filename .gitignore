@@ -1,0 +1,13 @@
+# secrets and local config
+.env
+.env.*
+!.env.example
+
+# editors and OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# claude local state
+.claude/settings.local.json

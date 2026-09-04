@@ -1,0 +1,117 @@
+[kit]
+cli_version = "0.2.0"
+core_version = "0.3.0"
+profile = "omarchy-plugin"
+profile_version = "0.1.0"
+profile_source = "bundled"
+preset = "none"
+preset_version = ""
+preset_source = ""
+mode = "project"
+scope = "perso"
+created = "2026-09-04"
+
+[answers]
+privileged = true
+
+[commands]
+
+[files.".claude/skills/audit/SKILL.md"]
+kind = "owned"
+sha256 = "3f50e83e5682a090a3b3a4d87626fb4d5a6b86f3fc343a8bc0fae60683f853f2"
+
+[files.".claude/skills/done/SKILL.md"]
+kind = "owned"
+sha256 = "c18f6ab84283d01e1c0bb0ace75b79e0a33657d96ff632759f7c34651961f7b0"
+
+[files.".claude/skills/new-adr/SKILL.md"]
+kind = "owned"
+sha256 = "8ee0ecc098b34b04c0ffe1ea539776db852c6917c6d7e3423b971b1b382920d1"
+
+[files.".claude/skills/release/SKILL.md"]
+kind = "owned"
+sha256 = "5b316559540683e9591bd97df0f2b22fce81953ed815e7ec7fd709da11fbb1af"
+
+[files.".claude/skills/setup-stack/SKILL.md"]
+kind = "owned"
+sha256 = "fd8867bf5cb44b849609122b18e57405b99d8e096abbc4548e4cf42bb761602b"
+
+[files.".claude/skills/start/SKILL.md"]
+kind = "owned"
+sha256 = "3e66be141cfe36e6f484b93d5dfcbf250afc08abefda84b1f1dd935d62181bee"
+
+[files.".claude/skills/triage/SKILL.md"]
+kind = "owned"
+sha256 = "304a5681b4605681c2c7ff532a13e7db2baf6ef30914ad770b51a981549d2a10"
+
+[files.".env.example"]
+kind = "seeded"
+sha256 = "5e9c6d964163d1b9906548b9cf1ca4fec9f87c67b70b2631e9fa291ee1bfebb7"
+
+[files.".github/workflows/ci.yml"]
+kind = "owned"
+sha256 = "b26da67c200727fbbc3209c85d8fa009c24eb7a03b59e36dd3b083f2d0fa67df"
+
+[files.".gitignore"]
+kind = "owned"
+sha256 = "983e67a53fc9bc4490c8d31af99522a3f7043f333fb5b9e541abd49a8be28314"
+
+[files.".kit/ci-setup.sh"]
+kind = "seeded"
+sha256 = "4aa8c45df00ebb2772068fb6290840ec07968818d003a04d08d06a51e1098b02"
+
+[files.".kit/hooks/pre-commit"]
+kind = "owned"
+sha256 = "b5d89001e3775417b9a5d8803c3a2ed0930c0b58bc2439d5d331dad3b359fb93"
+
+[files.".kit/run"]
+kind = "owned"
+sha256 = "168d71c3981a9ea09070c5aa82874667bbd1f56886bf302a690f63259617aeb0"
+
+[files."CHANGELOG.md"]
+kind = "seeded"
+sha256 = "61df9e754bf4c7860c13979ba75928278d977487ca929f4889fa2b01e64da76d"
+
+[files."CLAUDE.md"]
+kind = "seeded"
+sha256 = "e1be10f1d0f507784c152e04dc24dc3a7537fa52ecfee9156dce7921fc89d7dc"
+
+[files.LICENSE]
+kind = "seeded"
+sha256 = "bd46c5eee45b18fac8141aee7d93c718ef9518aad7cbd79528eff7ee3e3551fb"
+
+[files."README.md"]
+kind = "seeded"
+sha256 = "a0ded11068c90254528a3885c9375e2faca4500cf0af4ea71f947dfee57b729e"
+
+[files."docs/adr/0000-template.md"]
+kind = "owned"
+sha256 = "fe18f7af9e090280194e7349af1b24674cbc54ef03995c2465de725a5e1240d6"
+
+[files."docs/adr/README.md"]
+kind = "owned"
+sha256 = "38ba9f83f024e71333fff5d3e26650a4908ed1270a5929e82f30cfeef4daa5dc"
+
+[files."docs/architecture.md"]
+kind = "seeded"
+sha256 = "6a836cc72fabb485bacc8342a20cf1e9c690a32281113bf6ca29e99eb3d4032e"
+
+[files."docs/decisions.md"]
+kind = "seeded"
+sha256 = "83c6adf91ac294ba2c6ab2f4502d617516c9c8652f18ccd087c5e870c62ec8de"
+
+[files."docs/definition-of-done.md"]
+kind = "owned"
+sha256 = "160d1ebad46a7d4e61041808c3fa66b54db7bcd2002a0e6c0b24ab966c24bea8"
+
+[files."docs/kind-conventions.md"]
+kind = "owned"
+sha256 = "fb647607668fbf515a7d68d91070efa5d521cd69d28319f8491ba2185ac45770"
+
+[files."docs/kit-conventions.md"]
+kind = "owned"
+sha256 = "328f0cd919fe7f4dfa01f568a378e9077669e35c85ac6d59ecb4babdbfaa0b63"
+
+[files."docs/privileged-conventions.md"]
+kind = "owned"
+sha256 = "0c8ae6faf26be0bb480f2a0d49a309f07575573b41de52f74135976c567bea7c"

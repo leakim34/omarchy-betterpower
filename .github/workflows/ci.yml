@@ -1,0 +1,23 @@
+name: ci
+
+# Owned by kit. Stack-agnostic: every step goes through .kit/run, which reads .kit.toml.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup
+        run: bash .kit/ci-setup.sh
+      - name: lint
+        run: .kit/run lint
+      - name: typecheck
+        run: .kit/run typecheck
+      - name: test
+        run: .kit/run test
+      - name: guard
+        run: .kit/run guard
