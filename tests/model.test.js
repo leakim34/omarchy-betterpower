@@ -1,0 +1,63 @@
+"use strict";
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const M = require("../Model.js");
+
+test("defaults apply when settings are missing or garbage", () => {
+  assert.deepEqual(M.normalizeSettings(undefined), M.DEFAULTS);
+  const s = M.normalizeSettings({ batteryLock: "nope", acProfile: 42, clamshell: "maybe", batterySleep: -5 });
+  assert.equal(s.batteryLock, M.DEFAULTS.batteryLock);
+  assert.equal(s.acProfile, M.DEFAULTS.acProfile);
+  assert.equal(s.clamshell, M.DEFAULTS.clamshell);
+  assert.equal(s.batterySleep, M.DEFAULTS.batterySleep);
+});
+
+test("delays are floored, clamped and accept numeric strings", () => {
+  assert.equal(M.normalizeDelay("90.7", 1), 90);
+  assert.equal(M.normalizeDelay(1e9, 1), 86400);
+  assert.equal(M.normalizeDelay(0, 1), 0);
+  assert.equal(M.normalizeDelay(null, 7), 7);
+});
+
+test("profiles fall back to what the system offers", () => {
+  assert.equal(M.normalizeProfile("performance", "balanced", ["balanced", "power-saver"]), "balanced");
+  assert.equal(M.normalizeProfile("x", "performance", ["power-saver"]), "power-saver");
+  assert.equal(M.normalizeProfile("power-saver", "balanced", []), "power-saver");
+});
+
+test("booleans read the settings screen's On/Off strings", () => {
+  assert.equal(M.normalizeBool("On", false), true);
+  assert.equal(M.normalizeBool("off", true), false);
+  assert.equal(M.normalizeBool(1, false), true);
+  assert.equal(M.normalizeBool("", true), true);
+});
+
+test("strategy: never-lock implies never-sleep and stay-awake only when nothing fires", () => {
+  const ac = M.strategyFor("ac", { acLock: 0, acSleep: 600, acScreensaver: 0 });
+  assert.equal(ac.sleep, 0);
+  assert.equal(ac.stayAwake, true);
+  const acSaver = M.strategyFor("ac", { acLock: 0, acScreensaver: 120 });
+  assert.equal(acSaver.stayAwake, false);
+  const bat = M.strategyFor("battery", {});
+  assert.deepEqual(bat, { source: "battery", profile: "power-saver", screensaver: 120, lock: 300, sleep: 600, stayAwake: false });
+});
+
+test("delay labels and options", () => {
+  assert.equal(M.delayLabel(0), "Never");
+  assert.equal(M.delayLabel(45), "45 s");
+  assert.equal(M.delayLabel(600), "10 min");
+  assert.equal(M.delayLabel(3600), "1 h");
+  assert.equal(M.delayLabel(90), "1 min 30 s");
+  const opts = M.delayOptions(420);
+  assert.equal(opts[opts.length - 1].label, "Never");
+  assert.ok(opts.some((o) => o.value === "420" && o.label === "7 min"));
+  assert.equal(M.delayOptions(600).length, M.DELAY_PRESETS.length);
+});
+
+test("labels and icons", () => {
+  assert.equal(M.profileLabel("power-saver"), "Eco");
+  assert.equal(M.profileLabel("balanced"), "Balanced");
+  assert.equal(M.sourceLabel("ac"), "Plugged in");
+  assert.equal(M.sourceKey("battery", "lock"), "batteryLock");
+  assert.notEqual(M.profileIcon("performance"), M.profileIcon("balanced"));
+});
