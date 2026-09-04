@@ -29,8 +29,6 @@ BarWidget {
       target.anchorItem = button;
     if ("hostWidget" in target)
       target.hostWidget = root;
-    if (root.service)
-      root.service.updateSettings(root.settings);
   }
 
   function togglePanel() {
@@ -75,7 +73,6 @@ BarWidget {
 
   onBarChanged: injectPanel()
   onSettingsChanged: injectPanel()
-  onServiceChanged: injectPanel()
 
   Loader {
     id: panelLoader

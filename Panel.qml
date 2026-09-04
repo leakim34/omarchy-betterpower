@@ -30,11 +30,28 @@ Panel {
   readonly property var profileOptions: Model.profileOptions(profiles)
   readonly property var settingsView: Model.normalizeSettings(root.settings, profiles)
 
-  // Keyboard cursor: which source column and which chip inside its profile
-  // group. -1 means the cursor is parked (mouse only).
-  property int cursorSource: -1
+  // Keyboard cursor over a grid: each source owns two rows, its profile
+  // buttons then its delay dropdowns. -1 means the cursor is parked.
+  readonly property int rowsPerSource: 2
+  property int cursorRow: -1
   property int cursorIndex: 0
-  readonly property bool cursorActive: cursorSource >= 0
+  readonly property bool cursorActive: cursorRow >= 0
+  readonly property int cursorSource: cursorActive ? Math.floor(cursorRow / rowsPerSource) : -1
+  readonly property int cursorKind: cursorActive ? cursorRow % rowsPerSource : -1
+  readonly property var delayFields: ["screensaver", "lock"]
+  property var delayControls: ({})
+
+  function registerDelayControl(sourceIndex, fieldIndex, item) {
+    var next = {};
+    for (var k in delayControls)
+      next[k] = delayControls[k];
+    next[sourceIndex + ":" + fieldIndex] = item;
+    delayControls = next;
+  }
+
+  function rowLength(row) {
+    return row % rowsPerSource === 0 ? profileOptions.length : delayFields.length;
+  }
 
   readonly property string heroMeta: {
     if (!batteryPresent)
@@ -54,24 +71,39 @@ Panel {
       service.setProfile(src, value);
   }
 
+  function setDelay(src, field, seconds) {
+    if (service)
+      service.setDelay(src, field, seconds);
+  }
+
   function moveCursor(dx, dy) {
+    var rows = Model.SOURCES.length * rowsPerSource;
     if (!cursorActive) {
-      cursorSource = Model.SOURCES.indexOf(source);
+      cursorRow = Model.SOURCES.indexOf(source) * rowsPerSource;
       cursorIndex = Math.max(0, profileOptions.map(function (o) {
         return o.value;
       }).indexOf(settingsView[Model.sourceKey(source, "profile")]));
       return;
     }
     if (dy !== 0)
-      cursorSource = (cursorSource + (dy > 0 ? 1 : -1) + Model.SOURCES.length) % Model.SOURCES.length;
+      cursorRow = (cursorRow + (dy > 0 ? 1 : -1) + rows) % rows;
+    var len = rowLength(cursorRow);
     if (dx !== 0)
-      cursorIndex = (cursorIndex + (dx > 0 ? 1 : -1) + profileOptions.length) % profileOptions.length;
+      cursorIndex = (cursorIndex + (dx > 0 ? 1 : -1) + len) % len;
+    cursorIndex = Math.min(cursorIndex, len - 1);
   }
 
   function activateCursor() {
-    if (!cursorActive || cursorIndex < 0 || cursorIndex >= profileOptions.length)
+    if (!cursorActive)
       return;
-    setProfile(Model.SOURCES[cursorSource], profileOptions[cursorIndex].value);
+    if (cursorKind === 0) {
+      if (cursorIndex < profileOptions.length)
+        setProfile(Model.SOURCES[cursorSource], profileOptions[cursorIndex].value);
+      return;
+    }
+    var control = delayControls[cursorSource + ":" + cursorIndex];
+    if (control && typeof control.open === "function")
+      control.open();
   }
 
   IpcHandler {
@@ -99,12 +131,14 @@ Panel {
       root.setProfile(source, profile);
       return root.statusJson();
     }
+    function setDelay(source: string, field: string, seconds: string): string {
+      root.setDelay(source, field, seconds);
+      return root.statusJson();
+    }
   }
 
-  onSettingsChanged: if (service)
-    service.updateSettings(root.settings)
   onOpenedChanged: {
-    cursorSource = -1;
+    cursorRow = -1;
     if (opened && service)
       service.refreshProfiles();
   }
@@ -216,15 +250,40 @@ Panel {
               }
             }
 
-            Text {
-              textFormat: Text.PlainText
+            Row {
+              id: delayRow
               width: parent.width
-              wrapMode: Text.Wrap
-              text: "Lock " + Model.delayLabel(root.settingsView[Model.sourceKey(sourceSection.src, "lock")]).toLowerCase() + " · sleep " + Model.delayLabel(Model.strategyFor(sourceSection.src, root.settingsView).sleep).toLowerCase()
-              color: root.foreground
-              opacity: 0.7
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.bodySmall
+              spacing: Style.spacing.md
+              readonly property real cellWidth: (width - spacing * (root.delayFields.length - 1)) / root.delayFields.length
+
+              Repeater {
+                model: root.delayFields
+                Dropdown {
+                  id: delayDropdown
+                  required property var modelData
+                  required property int index
+                  readonly property string field: String(modelData)
+                  readonly property string key: Model.sourceKey(sourceSection.src, field)
+                  width: delayRow.cellWidth
+                  label: field === "screensaver" ? "Screensaver after" : "Lock after"
+                  options: Model.delayOptions(root.settingsView[key])
+                  value: String(root.settingsView[key])
+                  foreground: root.foreground
+                  accent: Color.accent
+                  fontFamily: root.fontFamily
+                  hasCursor: root.cursorSource === sourceSection.index && root.cursorKind === 1 && root.cursorIndex === index
+                  onChanged: function (v) {
+                    root.setDelay(sourceSection.src, field, v);
+                  }
+                  onHovered: function (h) {
+                    if (h) {
+                      root.cursorRow = sourceSection.index * root.rowsPerSource + 1;
+                      root.cursorIndex = index;
+                    }
+                  }
+                  Component.onCompleted: root.registerDelayControl(sourceSection.index, index, delayDropdown)
+                }
+              }
             }
           }
         }

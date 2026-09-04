@@ -76,3 +76,23 @@ test("profile options carry label and icon and fall back to the known set", () =
   assert.ok(opts.every((o) => o.icon.length > 0));
   assert.equal(M.profileOptions([]).length, M.PROFILES.length);
 });
+
+test("idle config maps never to a week and disables the cycle only when nothing fires", () => {
+  const both = M.idleConfigFor(M.strategyFor("ac", { acScreensaver: 0, acLock: 0 }));
+  assert.deepEqual(both, { screensaver: M.NEVER_IDLE_SECONDS, lock: M.NEVER_IDLE_SECONDS, stayAwake: true });
+  const saverOnly = M.idleConfigFor(M.strategyFor("ac", { acScreensaver: 120, acLock: 0 }));
+  assert.deepEqual(saverOnly, { screensaver: 120, lock: M.NEVER_IDLE_SECONDS, stayAwake: false });
+  const lockOnly = M.idleConfigFor(M.strategyFor("battery", { batteryScreensaver: 0, batteryLock: 300 }));
+  assert.deepEqual(lockOnly, { screensaver: M.NEVER_IDLE_SECONDS, lock: 300, stayAwake: false });
+  assert.ok(M.sameIdleConfig(both, M.idleConfigFor(M.strategyFor("ac", { acScreensaver: 0, acLock: 0 }))));
+  assert.ok(!M.sameIdleConfig(both, saverOnly));
+  assert.ok(!M.sameIdleConfig(null, both));
+});
+
+test("finds the plugin entry in the bar layout or the plugins list", () => {
+  const cfg = { bar: { layout: { left: [], right: [{ id: "x" }, { id: "leakz.power", acLock: 5 }] } }, plugins: [{ id: "leakz.power", acLock: 9 }] };
+  assert.equal(M.findEntry(cfg, "leakz.power").acLock, 5);
+  assert.equal(M.findEntry({ plugins: [{ id: "leakz.power", acLock: 9 }] }, "leakz.power").acLock, 9);
+  assert.equal(M.findEntry({}, "leakz.power"), null);
+  assert.equal(M.findEntry(null, "leakz.power"), null);
+});

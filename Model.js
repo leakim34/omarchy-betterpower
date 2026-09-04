@@ -9,6 +9,11 @@ var MAX_DELAY = 86400
 // Delay presets in seconds. 0 means never.
 var DELAY_PRESETS = [60, 120, 300, 600, 900, 1800, 3600, NEVER]
 
+// The idle service arms its monitor with the smaller of the two timings and a
+// zero would fire at once, so a disabled step is written as a week and the
+// whole cycle is switched off through stay-awake only when nothing fires.
+var NEVER_IDLE_SECONDS = 604800
+
 var DEFAULTS = {
   batteryProfile: "power-saver",
   batteryScreensaver: 120,
@@ -20,6 +25,25 @@ var DEFAULTS = {
   acSleep: NEVER,
   clamshell: true,
   chargeLimit: false
+}
+
+// The plugin's own entry in shell.json: a bar layout item or a plugins[]
+// item whose id matches. Settings are the other fields on that entry.
+function findEntry(config, id) {
+  if (!config || typeof config !== "object") return null
+  var sections = ["left", "center", "right"]
+  var layout = config.bar && config.bar.layout && typeof config.bar.layout === "object" ? config.bar.layout : {}
+  for (var s = 0; s < sections.length; s++) {
+    var arr = Array.isArray(layout[sections[s]]) ? layout[sections[s]] : []
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i] && arr[i].id === id) return arr[i]
+    }
+  }
+  var plugins = Array.isArray(config.plugins) ? config.plugins : []
+  for (var j = 0; j < plugins.length; j++) {
+    if (plugins[j] && plugins[j].id === id) return plugins[j]
+  }
+  return null
 }
 
 function sourceKey(source, field) {
@@ -91,6 +115,19 @@ function strategyFor(source, settings) {
   }
 }
 
+// What the service writes for one strategy: the idle keys of shell.json and
+// whether the idle cycle must be disabled altogether.
+function idleConfigFor(strategy) {
+  var screensaver = strategy.screensaver === NEVER ? NEVER_IDLE_SECONDS : strategy.screensaver
+  var lock = strategy.lock === NEVER ? NEVER_IDLE_SECONDS : strategy.lock
+  return { screensaver: screensaver, lock: lock, stayAwake: !!strategy.stayAwake }
+}
+
+function sameIdleConfig(a, b) {
+  if (!a || !b) return false
+  return a.screensaver === b.screensaver && a.lock === b.lock && a.stayAwake === b.stayAwake
+}
+
 function delayLabel(seconds) {
   var n = normalizeDelay(seconds, NEVER)
   if (n === NEVER) return "Never"
@@ -155,7 +192,11 @@ if (typeof module !== "undefined") {
     PROFILES: PROFILES,
     NEVER: NEVER,
     DELAY_PRESETS: DELAY_PRESETS,
+    NEVER_IDLE_SECONDS: NEVER_IDLE_SECONDS,
+    idleConfigFor: idleConfigFor,
+    sameIdleConfig: sameIdleConfig,
     DEFAULTS: DEFAULTS,
+    findEntry: findEntry,
     sourceKey: sourceKey,
     sourceLabel: sourceLabel,
     normalizeDelay: normalizeDelay,
