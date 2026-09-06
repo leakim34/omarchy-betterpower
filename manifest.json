@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "author": "leakz",
   "license": "MIT",
-  "description": "Battery protection, per-power-source lock, sleep and power profile strategies, and clamshell lid control",
+  "description": "Power profile, screensaver, lock and sleep per power source, battery protection, clamshell lid control, and a bar-wide battery gauge",
   "kinds": [
     "bar-widget",
     "service"
@@ -16,7 +16,7 @@
   },
   "barWidget": {
     "displayName": "BetterPower",
-    "description": "Battery protection, per-source lock, sleep and profile strategies, clamshell",
+    "description": "Per-source power strategy, battery protection, clamshell, bar battery gauge",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right",

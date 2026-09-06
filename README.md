@@ -1,9 +1,10 @@
 # Omarchy BetterPower
 
-An [Omarchy](https://omarchy.org) shell plugin that turns power management into one explicit
-strategy per power source. For battery and for plugged in you pick a power profile, a
-screensaver delay, a lock delay and a sleep delay. On top: a battery protection toggle and a
-clamshell toggle that keeps the session running with the lid closed on an external screen.
+An [Omarchy](https://omarchy.org) shell plugin that replaces the built-in Power widget with one
+explicit strategy per power source. For battery and for plugged in you pick a power profile, a
+screensaver delay, a lock delay and a sleep delay. On top: a battery protection toggle, a
+clamshell toggle that keeps the session running with the lid closed on an external screen, and
+a bar that can turn into a battery gauge.
 
 The panel follows the active Omarchy theme and is fully keyboard driven.
 
@@ -12,13 +13,31 @@ The panel follows the active Omarchy theme and is fully keyboard driven.
 ## Install
 
 ```bash
-omarchy plugin add git@github.com:leakim34/omarchy-betterpower.git --enable
+omarchy plugin add https://github.com/leakim34/omarchy-betterpower.git --enable
 ```
 
 Plugins run unsandboxed inside `omarchy-shell`. Read the code before enabling; it is short.
 
-The plugin sits alongside the first-party Power widget. Both agree on the active profile,
-so keep both or remove `omarchy.power` from `~/.config/omarchy/shell.json` once you are settled.
+BetterPower drives the same state the built-in Power widget reads, so the two always agree.
+Keep both during a trial, then disable the built-in one:
+
+```bash
+omarchy plugin disable omarchy.power
+```
+
+## The bar
+
+Left click opens the panel. Right click cycles what the bar shows besides the battery icon:
+
+| Mode | Shows |
+|---|---|
+| `off` | The icon only |
+| `percentage` | The percentage next to the icon |
+| `gauge` | The battery level painted across the whole bar, in the theme accent; urgent color under 20%, a soft shimmer while charging |
+| `both` | Percentage and gauge |
+
+The gauge draws under the bar's widgets and above its background, on horizontal and vertical
+bars alike. It never touches the bar's own settings.
 
 ## What it does
 
@@ -100,4 +119,5 @@ was last applied; they are ordinary Omarchy settings you can change from the bui
 .kit/run run --restart     # restart the shell (needed after Panel.qml or Service.qml changes)
 ```
 
-See `docs/architecture.md` and `docs/adr/` for the design.
+See `docs/architecture.md` and `docs/adr/` for the design. Issues and ideas are welcome on the
+[tracker](https://github.com/leakim34/omarchy-betterpower/issues).

@@ -22,7 +22,6 @@ flowchart LR
     S -->|EnableChargeThreshold| UP[UPower D-Bus]
     S -->|systemd-inhibit handle-lid-switch| LOGIND[logind]
     S -->|systemctl suspend after lock| LOGIND
-    S -->|pkexec bin/set-charge-threshold| SYS[sysfs charge_control_*]
   end
   CFG[(~/.config/omarchy/shell.json)] <-->|settings inline on the plugin entry| S
 ```
@@ -47,12 +46,9 @@ functions, and never computes policy itself. Built from `qs.Ui`, styled only thr
 `qs.Commons` and the bar's foreground. Owns the keyboard cursor over its controls.
 
 **BarWidget.qml** (kind `bar-widget`). Thin host: an icon button showing battery state and a
-protection marker, opens the panel, exposes the IPC target. No logic beyond delegation. In gauge mode it also owns a
-rectangle reparented onto the bar window's content item, below the sections, that paints the
-battery level across the whole bar (ADR 0010).
-
-**bin/** . Shell helpers only where no daemon offers the action: `set-charge-threshold`
-(run via pkexec, writes one sysfs value after validating its arguments). Each passes shellcheck.
+protection marker, opens the panel, exposes the IPC target. No logic beyond delegation. In gauge mode it also
+owns a rectangle reparented onto the bar window's content item, below the sections, that paints
+the battery level across the whole bar (ADR 0010).
 
 ## Boundaries
 
@@ -62,9 +58,9 @@ battery level across the whole bar (ADR 0010).
   `shell.json` and the first-party idle service, profiles through `omarchy-powerprofiles-set`,
   lock through the existing lock pipeline. The only new behavior is sleep after lock and the lid
   inhibitor. (ADR: coexistence)
-- Privileged writes exist only for numeric charge thresholds on hardware that exposes them, and
-  only through the pkexec helper, one prompt per user action. On firmware-mode hardware the
-  UPower call is used and needs no prompt. (ADR: system integration, privileged conventions)
+- Nothing runs as root. Battery protection goes through UPower's `EnableChargeThreshold`,
+  which polkit allows for the active session. Numeric thresholds, if they ever land, follow
+  `docs/privileged-conventions.md`. (ADR: system integration)
 - Every capability is detected before its control is shown. Unsupported hardware hides the
   control with a one-line reason. (kind conventions)
 - Runtime state the plugin owns (lid inhibitor, sleep timer) lives in the shell process and

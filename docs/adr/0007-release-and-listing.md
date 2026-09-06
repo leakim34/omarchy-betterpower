@@ -1,7 +1,7 @@
 # 0007. SemVer in the manifest, GitHub releases, marketplace listing when public
 
 Date: 2026-09-04
-Status: Accepted
+Status: Amended by 0011 (public from 0.2.0)
 
 ## Context
 

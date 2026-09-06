@@ -1,6 +1,6 @@
 # omarchy-betterpower
 
-Omarchy shell plugin for battery protection, per-power-source lock, sleep and power profile strategies, and clamshell lid control
+Omarchy shell plugin: power profile, screensaver, lock and sleep per power source, battery protection, clamshell lid control, and a bar-wide battery gauge
 
 Kind: omarchy-plugin. Stack: QML on Quickshell, node test runner, no dependencies. Commands run through `.kit/run <task>`, defined in `.kit.toml`.
 

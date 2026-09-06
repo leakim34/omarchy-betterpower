@@ -15,7 +15,7 @@ as its id appears anywhere in shell.json, so placing the bar widget enables the 
   `defaultSection: right`.
 - Kinds: `bar-widget` (entry BarWidget.qml, hosting Panel.qml) and `service` (Service.qml).
 - One IPC target `leakz.betterpower` with open, close, toggle, status, and one method per action
-  (setProfile, setLimit, setClamshell) so keybindings and scripts can drive it.
+  (setProfile, setDelay, setChargeLimit, setClamshell, setBarMode) so keybindings and scripts can drive it.
 - No overlay, menu or bar kinds.
 
 ## Consequences
