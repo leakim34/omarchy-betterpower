@@ -5,6 +5,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Added
+
+- Battery hero from the first-party Power panel: icon, status line with charging phrases, large percentage, progress bar with charging pulse, and the stats grid (size, cycles, charge limit, state). The charge limit cell reads the plugin's own UPower state (#9).
+
 ## [0.1.0] - 2026-09-04
 
 ### Added
