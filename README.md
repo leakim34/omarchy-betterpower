@@ -25,6 +25,19 @@ Keep both during a trial, then disable the built-in one:
 omarchy plugin disable omarchy.power
 ```
 
+### Uninstall
+
+```bash
+omarchy plugin remove leakz.betterpower
+```
+
+This deletes the plugin and its entry in `shell.json`. The idle delays and power profiles it
+last applied stay as they are; they are ordinary Omarchy settings, see [Files touched](#files-touched).
+
+### Requirements
+
+Omarchy 4 with the Quickshell shell. Nothing else: no extra packages, no root, no polkit rule.
+
 ## The bar
 
 Left click opens the panel. Right click cycles what the bar shows besides the battery icon:
@@ -121,3 +134,7 @@ was last applied; they are ordinary Omarchy settings you can change from the bui
 
 See `docs/architecture.md` and `docs/adr/` for the design. Issues and ideas are welcome on the
 [tracker](https://github.com/leakim34/omarchy-betterpower/issues).
+
+## License
+
+MIT, see [LICENSE](LICENSE).
