@@ -19,12 +19,15 @@ if (( ${#qml_files[@]} )); then
   # new as the one the files were formatted with is a valid judge. Older
   # (Ubuntu's Qt 6.4 on CI) warns and skips; formatting is enforced locally.
   qmlformat_min="6.8"
-  qmlformat_ver=$([[ -n $qmlformat_bin ]] && "$qmlformat_bin" --version 2>/dev/null | awk '{print $2}' || true)
-  if [[ -n $qmlformat_bin ]] && [[ "$(printf '%s\n' "$qmlformat_min" "$qmlformat_ver" | sort -V | head -1)" != "$qmlformat_min" ]]; then
-    echo "lint: qmlformat $qmlformat_ver is older than $qmlformat_min, QML formatting not checked" >&2
-    qmlformat_bin=""
-  fi
+  qmlformat_ver=""
   if [[ -n $qmlformat_bin ]]; then
+    qmlformat_ver=$("$qmlformat_bin" --version 2>/dev/null | awk '{print $2}')
+  fi
+  if [[ -z $qmlformat_bin ]]; then
+    echo "lint: qmlformat not found, QML formatting not checked" >&2
+  elif [[ "$(printf '%s\n' "$qmlformat_min" "$qmlformat_ver" | sort -V | head -1)" != "$qmlformat_min" ]]; then
+    echo "lint: qmlformat $qmlformat_ver is older than $qmlformat_min, QML formatting not checked" >&2
+  else
     # qmlformat has no --check: compare its output with the file on disk.
     for f in "${qml_files[@]}"; do
       if ! diff -q <("$qmlformat_bin" "$f") "$f" >/dev/null; then
@@ -32,8 +35,6 @@ if (( ${#qml_files[@]} )); then
         status=1
       fi
     done
-  else
-    echo "lint: qmlformat not found, QML formatting not checked" >&2
   fi
 fi
 
