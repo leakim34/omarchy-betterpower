@@ -1,4 +1,4 @@
-# Omarchy Power
+# Omarchy BetterPower
 
 An [Omarchy](https://omarchy.org) shell plugin that turns power management into one explicit
 strategy per power source. For battery and for plugged in you pick a power profile, a
@@ -12,7 +12,7 @@ The panel follows the active Omarchy theme and is fully keyboard driven.
 ## Install
 
 ```bash
-omarchy plugin add git@github.com:leakim34/omarchy-power.git --enable
+omarchy plugin add git@github.com:leakim34/omarchy-betterpower.git --enable
 ```
 
 Plugins run unsandboxed inside `omarchy-shell`. Read the code before enabling; it is short.
@@ -59,7 +59,7 @@ how Omarchy treats every third-party plugin.
 
 ## IPC
 
-Target `leakz.power`, through `omarchy-shell leakz.power <method> [args]`:
+Target `leakz.betterpower`, through `omarchy-shell leakz.betterpower <method> [args]`:
 
 | Method | Effect |
 |---|---|
@@ -79,7 +79,7 @@ Target `leakz.power`, through `omarchy-shell leakz.power <method> [args]`:
 | `~/.local/state/omarchy/powerprofiles/{ac,battery}` | Omarchy | Profile choice per source |
 | `~/.local/state/omarchy/indicators/stay-awake` | Omarchy | Through the idle service, when both delays are never |
 
-No file of its own. Removal (`omarchy plugin remove leakz.power`) leaves those values at what
+No file of its own. Removal (`omarchy plugin remove leakz.betterpower`) leaves those values at what
 was last applied; they are ordinary Omarchy settings you can change from the built-in panels.
 
 ## Hardware notes

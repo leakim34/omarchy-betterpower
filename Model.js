@@ -1,4 +1,4 @@
-// Pure decisions for leakz.power. No Qt imports: this file loads both from QML
+// Pure decisions for leakz.betterpower. No Qt imports: this file loads both from QML
 // (import "Model.js" as Model) and from node (require) for the tests.
 
 var SOURCES = ["battery", "ac"]

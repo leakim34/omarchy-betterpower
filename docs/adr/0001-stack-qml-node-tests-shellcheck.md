@@ -18,7 +18,7 @@ Node 26 is installed through mise. No package manager or dependency is needed.
 - Lint: `omarchy plugin validate .`, `shellcheck bin/*`, and `qmlformat --check` when it is
   installed. Format: `qmlformat -i`. Typecheck: skip. Build: skip.
 - Run: `omarchy-shell shell rescanPlugins` after linking the checkout into
-  `~/.config/omarchy/plugins/leakz.power`.
+  `~/.config/omarchy/plugins/leakz.betterpower`.
 
 ## Consequences
 

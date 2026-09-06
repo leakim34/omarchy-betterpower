@@ -1,4 +1,4 @@
-# omarchy-power
+# omarchy-betterpower
 
 Omarchy shell plugin for battery protection, per-power-source lock, sleep and power profile strategies, and clamshell lid control
 

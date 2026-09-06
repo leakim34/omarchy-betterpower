@@ -4,13 +4,13 @@ import qs.Commons
 import qs.Ui
 import "Model.js" as Model
 
-// Bar entry for leakz.power: an icon button that opens Panel.qml. No logic
+// Bar entry for leakz.betterpower: an icon button that opens Panel.qml. No logic
 // beyond hosting the panel and handing it the bar and settings.
 BarWidget {
   id: root
-  moduleName: "leakz.power"
+  moduleName: "leakz.betterpower"
 
-  readonly property var service: bar && bar.shell && typeof bar.shell.serviceFor === "function" ? bar.shell.serviceFor("leakz.power") : null
+  readonly property var service: bar && bar.shell && typeof bar.shell.serviceFor === "function" ? bar.shell.serviceFor("leakz.betterpower") : null
   readonly property bool batteryPresent: {
     var d = UPower.displayDevice;
     return !!(d && d.isPresent);

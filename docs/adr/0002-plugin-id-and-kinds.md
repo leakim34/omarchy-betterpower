@@ -1,4 +1,4 @@
-# 0002. Id leakz.power with kinds bar-widget and service
+# 0002. Id leakz.betterpower with kinds bar-widget and service
 
 Date: 2026-09-04
 Status: Accepted
@@ -11,10 +11,10 @@ as its id appears anywhere in shell.json, so placing the bar widget enables the 
 
 ## Decision
 
-- Id: `leakz.power`. Name: "Power". Category: System. `allowMultiple: false`,
+- Id: `leakz.betterpower`. Name: "BetterPower". Category: System. `allowMultiple: false`,
   `defaultSection: right`.
 - Kinds: `bar-widget` (entry BarWidget.qml, hosting Panel.qml) and `service` (Service.qml).
-- One IPC target `leakz.power` with open, close, toggle, status, and one method per action
+- One IPC target `leakz.betterpower` with open, close, toggle, status, and one method per action
   (setProfile, setLimit, setClamshell) so keybindings and scripts can drive it.
 - No overlay, menu or bar kinds.
 

@@ -6,12 +6,12 @@ import qs.Commons
 import qs.Ui
 import "Model.js" as Model
 
-// The leakz.power popup. Reads state from the service, calls its functions,
+// The leakz.betterpower popup. Reads state from the service, calls its functions,
 // and never computes policy or touches the system itself.
 Panel {
   id: root
-  moduleName: "leakz.power"
-  ipcTarget: "leakz.power"
+  moduleName: "leakz.betterpower"
+  ipcTarget: "leakz.betterpower"
   // The single IpcHandler for this target lives here so it can expose status
   // from the service next to open/close.
   manageIpc: false
@@ -19,7 +19,7 @@ Panel {
   property var anchorItem: null
   property var hostWidget: null
 
-  readonly property var service: bar && bar.shell && typeof bar.shell.serviceFor === "function" ? bar.shell.serviceFor("leakz.power") : null
+  readonly property var service: bar && bar.shell && typeof bar.shell.serviceFor === "function" ? bar.shell.serviceFor("leakz.betterpower") : null
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property var device: UPower.displayDevice
@@ -243,7 +243,7 @@ Panel {
   }
 
   IpcHandler {
-    target: "leakz.power"
+    target: "leakz.betterpower"
 
     function open(): void {
       root.open();

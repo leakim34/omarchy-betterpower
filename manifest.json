@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "id": "leakz.power",
-  "name": "Power",
+  "id": "leakz.betterpower",
+  "name": "BetterPower",
   "version": "0.1.0",
   "author": "leakz",
   "license": "MIT",
@@ -15,7 +15,7 @@
     "service": "Service.qml"
   },
   "barWidget": {
-    "displayName": "Power",
+    "displayName": "BetterPower",
     "description": "Battery protection, per-source lock, sleep and profile strategies, clamshell",
     "category": "System",
     "allowMultiple": false,

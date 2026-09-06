@@ -93,11 +93,11 @@ test("idle config maps never to a week and disables the cycle only when nothing 
 });
 
 test("finds the plugin entry in the bar layout or the plugins list", () => {
-  const cfg = { bar: { layout: { left: [], right: [{ id: "x" }, { id: "leakz.power", acLock: 5 }] } }, plugins: [{ id: "leakz.power", acLock: 9 }] };
-  assert.equal(M.findEntry(cfg, "leakz.power").acLock, 5);
-  assert.equal(M.findEntry({ plugins: [{ id: "leakz.power", acLock: 9 }] }, "leakz.power").acLock, 9);
-  assert.equal(M.findEntry({}, "leakz.power"), null);
-  assert.equal(M.findEntry(null, "leakz.power"), null);
+  const cfg = { bar: { layout: { left: [], right: [{ id: "x" }, { id: "leakz.betterpower", acLock: 5 }] } }, plugins: [{ id: "leakz.betterpower", acLock: 9 }] };
+  assert.equal(M.findEntry(cfg, "leakz.betterpower").acLock, 5);
+  assert.equal(M.findEntry({ plugins: [{ id: "leakz.betterpower", acLock: 9 }] }, "leakz.betterpower").acLock, 9);
+  assert.equal(M.findEntry({}, "leakz.betterpower"), null);
+  assert.equal(M.findEntry(null, "leakz.betterpower"), null);
 });
 
 test("charge state parses busctl lines and tolerates garbage", () => {

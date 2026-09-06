@@ -7,7 +7,7 @@ const path = require("node:path");
 const { validate } = require("../scripts/validate-manifest.js");
 
 function plugin(manifest, files = {}) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "omarchy-power-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "omarchy-betterpower-"));
   for (const [name, body] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), body);
   if (manifest !== null) fs.writeFileSync(path.join(dir, "manifest.json"), typeof manifest === "string" ? manifest : JSON.stringify(manifest));
   return dir;

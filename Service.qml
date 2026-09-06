@@ -5,7 +5,7 @@ import Quickshell.Services.UPower
 import Quickshell.Wayland
 import "Model.js" as Model
 
-// Policy engine for leakz.power. Loaded by the shell at startup as a headless
+// Policy engine for leakz.betterpower. Loaded by the shell at startup as a headless
 // service. It owns every side effect (processes, D-Bus, inhibitors) and is the
 // single writer of the plugin's settings; the panel only reads its state and
 // calls its functions.
@@ -23,7 +23,7 @@ Item {
   // Injected by the shell loader.
   property var shell: null
 
-  readonly property string pluginId: "leakz.power"
+  readonly property string pluginId: "leakz.betterpower"
   readonly property string home: Quickshell.env("HOME")
   readonly property string powerProfilesStateDir: (Quickshell.env("XDG_STATE_HOME") || home + "/.local/state") + "/omarchy/powerprofiles"
   readonly property bool onBattery: UPower.onBattery
@@ -301,7 +301,7 @@ Item {
 
   Process {
     id: lidInhibitProc
-    command: ["systemd-inhibit", "--what=handle-lid-switch", "--who=leakz.power", "--why=Clamshell: keep running with the lid closed", "--mode=block", "sleep", "infinity"]
+    command: ["systemd-inhibit", "--what=handle-lid-switch", "--who=leakz.betterpower", "--why=Clamshell: keep running with the lid closed", "--mode=block", "sleep", "infinity"]
     onExited: function (exitCode) {
       root.log("lid-inhibit", "released (exit " + exitCode + ")");
     }
