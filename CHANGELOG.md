@@ -5,6 +5,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-06
+
 ### Changed
 
 - Renamed to BetterPower: id `leakz.betterpower`, IPC target and repository follow. Pre-release, no migration.
