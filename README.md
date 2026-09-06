@@ -49,6 +49,7 @@ shell's plugin settings screen. Delays are seconds; `0` means never.
 | `acLock` | `0` | Lock delay plugged in |
 | `acSleep` | `0` | Sleep delay after lock plugged in |
 | `clamshell` | `On` | Hold the lid inhibitor while an external screen is connected |
+| `showPercentage` | `Off` | Battery percentage next to the bar icon; a right click on the icon toggles it |
 
 The battery protection state is not a setting: the firmware keeps it across reboots and the
 panel shows UPower's live value.
@@ -68,6 +69,7 @@ Target `leakz.power`, through `omarchy-shell leakz.power <method> [args]`:
 | `setDelay <battery\|ac> <screensaver\|lock\|sleep> <seconds>` | Persist and apply |
 | `setChargeLimit <true\|false>` | Toggle battery protection |
 | `setClamshell <true\|false>` | Toggle the lid inhibitor |
+| `togglePercentage` | Show or hide the percentage in the bar |
 
 ## Files touched
 
