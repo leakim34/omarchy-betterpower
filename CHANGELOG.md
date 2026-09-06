@@ -5,6 +5,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Fixed
+
+- The charging shimmer on the bar gauge ran past the battery level; it now stops at the fill edge.
+
 ## [0.2.0] - 2026-09-06
 
 ### Changed

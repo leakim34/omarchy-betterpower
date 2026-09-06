@@ -94,6 +94,8 @@ BarWidget {
 
   Rectangle {
     id: gaugeFill
+    // Children (edge fade, charging band) never paint past the battery level.
+    clip: true
     parent: root.gaugeHost
     visible: root.showGauge && parent !== null
     z: -1
