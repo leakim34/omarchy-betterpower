@@ -28,12 +28,18 @@ var DEFAULTS = {
 }
 
 // What the bar entry shows besides the icon. Right click cycles through them.
-var BAR_MODES = ["off", "percentage", "gauge"]
+// "both" is the percentage and the gauge together.
+var BAR_MODES = ["off", "percentage", "gauge", "both"]
 var GAUGE_LOW = 0.2
 
 function normalizeBarMode(value, fallback) {
   var s = String(value === undefined || value === null ? "" : value).trim().toLowerCase()
   return BAR_MODES.indexOf(s) >= 0 ? s : fallback
+}
+
+function barModeShows(mode) {
+  var m = normalizeBarMode(mode, "off")
+  return { percentage: m === "percentage" || m === "both", gauge: m === "gauge" || m === "both" }
 }
 
 function nextBarMode(mode) {
@@ -387,6 +393,7 @@ if (typeof module !== "undefined") {
     normalizeBarMode: normalizeBarMode,
     nextBarMode: nextBarMode,
     gaugeSpec: gaugeSpec,
+    barModeShows: barModeShows,
     normalizeSettings: normalizeSettings,
     strategyFor: strategyFor,
     delayLabel: delayLabel,

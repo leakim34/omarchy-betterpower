@@ -167,10 +167,14 @@ test("charge limit label follows the plugin's UPower state", () => {
 });
 
 test("bar mode cycles off -> percentage -> gauge -> off", () => {
-  assert.deepEqual(M.BAR_MODES, ["off", "percentage", "gauge"]);
+  assert.deepEqual(M.BAR_MODES, ["off", "percentage", "gauge", "both"]);
   assert.equal(M.nextBarMode("off"), "percentage");
   assert.equal(M.nextBarMode("percentage"), "gauge");
-  assert.equal(M.nextBarMode("gauge"), "off");
+  assert.equal(M.nextBarMode("gauge"), "both");
+  assert.equal(M.nextBarMode("both"), "off");
+  assert.deepEqual(M.barModeShows("both"), { percentage: true, gauge: true });
+  assert.deepEqual(M.barModeShows("gauge"), { percentage: false, gauge: true });
+  assert.deepEqual(M.barModeShows("nope"), { percentage: false, gauge: false });
   assert.equal(M.nextBarMode("garbage"), "percentage");
 });
 

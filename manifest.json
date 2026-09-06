@@ -122,11 +122,12 @@
       {
         "key": "barMode",
         "type": "enum",
-        "label": "Bar icon extra (right click cycles): nothing, the percentage, or a battery gauge painted across the bar",
+        "label": "Bar icon extra (right click cycles): nothing, the percentage, a battery gauge painted across the bar, or both",
         "options": [
           "off",
           "percentage",
-          "gauge"
+          "gauge",
+          "both"
         ],
         "defaultValue": "off"
       }

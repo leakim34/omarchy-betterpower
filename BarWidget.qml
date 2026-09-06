@@ -18,8 +18,9 @@ BarWidget {
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
   readonly property var settingsView: Model.normalizeSettings(root.settings, [])
   readonly property string barMode: settingsView.barMode
-  readonly property bool showPercentage: barMode === "percentage" && !vertical
-  readonly property bool showGauge: barMode === "gauge" && batteryPresent
+  readonly property var shows: Model.barModeShows(barMode)
+  readonly property bool showPercentage: shows.percentage && !vertical
+  readonly property bool showGauge: shows.gauge && batteryPresent
   readonly property int percentage: {
     var d = UPower.displayDevice;
     return d && d.isPresent ? Math.round(Number(d.percentage || 0) * 100) : -1;
