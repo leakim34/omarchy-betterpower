@@ -12,7 +12,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 ### Added
 
 - Battery hero from the first-party Power panel: icon, status line with charging phrases, large percentage, progress bar with charging pulse, and the stats grid (size, cycles, charge limit, state). The charge limit cell reads the plugin's own UPower state (#9).
-- Right click on the bar icon shows the battery percentage next to it, persisted as the `showPercentage` setting. IPC `togglePercentage` (#11).
+- Right click on the bar icon cycles the bar display mode: nothing, the percentage next to the icon, or a battery gauge painted across the whole bar in the theme accent, turning urgent under 20% and shimmering while charging. Persisted as the `barMode` setting. IPC `setBarMode`, `cycleBarMode` (#11, #12).
 
 ## [0.1.0] - 2026-09-04
 

@@ -30,7 +30,7 @@
       "acLock": 0,
       "acSleep": 0,
       "clamshell": "On",
-      "showPercentage": "Off"
+      "barMode": "off"
     },
     "schema": [
       {
@@ -120,14 +120,15 @@
         "defaultValue": "On"
       },
       {
-        "key": "showPercentage",
+        "key": "barMode",
         "type": "enum",
-        "label": "Show the percentage next to the bar icon (right click toggles it)",
+        "label": "Bar icon extra (right click cycles): nothing, the percentage, or a battery gauge painted across the bar",
         "options": [
-          "Off",
-          "On"
+          "off",
+          "percentage",
+          "gauge"
         ],
-        "defaultValue": "Off"
+        "defaultValue": "off"
       }
     ]
   }

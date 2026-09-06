@@ -47,7 +47,9 @@ functions, and never computes policy itself. Built from `qs.Ui`, styled only thr
 `qs.Commons` and the bar's foreground. Owns the keyboard cursor over its controls.
 
 **BarWidget.qml** (kind `bar-widget`). Thin host: an icon button showing battery state and a
-protection marker, opens the panel, exposes the IPC target. No logic beyond delegation.
+protection marker, opens the panel, exposes the IPC target. No logic beyond delegation. In gauge mode it also owns a
+rectangle reparented onto the bar window's content item, below the sections, that paints the
+battery level across the whole bar (ADR 0010).
 
 **bin/** . Shell helpers only where no daemon offers the action: `set-charge-threshold`
 (run via pkexec, writes one sysfs value after validating its arguments). Each passes shellcheck.

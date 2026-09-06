@@ -66,8 +66,12 @@ Item {
     var merged = {};
     for (var k in rawSettings)
       merged[k] = rawSettings[k];
-    for (var p in patch)
-      merged[p] = patch[p];
+    for (var p in patch) {
+      if (patch[p] === undefined)
+        delete merged[p];
+      else
+        merged[p] = patch[p];
+    }
     if (shell && typeof shell.updateEntryInline === "function")
       shell.updateEntryInline(pluginId, merged);
     else
@@ -318,10 +322,17 @@ Item {
 
   onLidInhibitWantedChanged: syncLidInhibit()
 
-  function setShowPercentage(enabled) {
-    saveSettings({
-      showPercentage: !!enabled
-    });
+  function setBarMode(mode) {
+    var patch = {
+      barMode: Model.normalizeBarMode(mode, settings.barMode)
+    };
+    if ("showPercentage" in rawSettings)
+      patch.showPercentage = undefined;
+    saveSettings(patch);
+  }
+
+  function cycleBarMode() {
+    setBarMode(Model.nextBarMode(settings.barMode));
   }
 
   function setClamshell(enabled) {

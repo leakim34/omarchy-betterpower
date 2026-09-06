@@ -10,8 +10,10 @@ test("defaults apply when settings are missing or garbage", () => {
   assert.equal(s.acProfile, M.DEFAULTS.acProfile);
   assert.equal(s.clamshell, M.DEFAULTS.clamshell);
   assert.equal("chargeLimit" in s, false);
-  assert.equal(s.showPercentage, false);
-  assert.equal(M.normalizeSettings({ showPercentage: "On" }).showPercentage, true);
+  assert.equal(s.barMode, "off");
+  assert.equal(M.normalizeSettings({ showPercentage: "On" }).barMode, "percentage");
+  assert.equal(M.normalizeSettings({ barMode: "Gauge" }).barMode, "gauge");
+  assert.equal(M.normalizeSettings({ barMode: "banana", showPercentage: true }).barMode, "percentage");
   assert.equal(s.batterySleep, M.DEFAULTS.batterySleep);
 });
 
@@ -162,4 +164,21 @@ test("charge limit label follows the plugin's UPower state", () => {
   assert.equal(M.chargeLimitLabel({ supported: true, enabled: true }, "60-80%"), "60-80%");
   assert.equal(M.chargeLimitLabel({ supported: true, enabled: true, end: 80 }, ""), "80%");
   assert.equal(M.chargeLimitLabel({ supported: true, enabled: true }, ""), "On");
+});
+
+test("bar mode cycles off -> percentage -> gauge -> off", () => {
+  assert.deepEqual(M.BAR_MODES, ["off", "percentage", "gauge"]);
+  assert.equal(M.nextBarMode("off"), "percentage");
+  assert.equal(M.nextBarMode("percentage"), "gauge");
+  assert.equal(M.nextBarMode("gauge"), "off");
+  assert.equal(M.nextBarMode("garbage"), "percentage");
+});
+
+test("gauge spec clamps the fraction and flags low battery unless charging", () => {
+  assert.deepEqual(M.gaugeSpec(0.55, false), { fraction: 0.55, low: false, alpha: 0.22 });
+  assert.equal(M.gaugeSpec(0.15, false).low, true);
+  assert.equal(M.gaugeSpec(0.15, true).low, false);
+  assert.equal(M.gaugeSpec(0, false).low, false);
+  assert.equal(M.gaugeSpec(3, false).fraction, 1);
+  assert.equal(M.gaugeSpec("x", false).fraction, 0);
 });

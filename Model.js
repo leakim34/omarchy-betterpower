@@ -24,7 +24,31 @@ var DEFAULTS = {
   acLock: NEVER,
   acSleep: NEVER,
   clamshell: true,
-  showPercentage: false
+  barMode: "off"
+}
+
+// What the bar entry shows besides the icon. Right click cycles through them.
+var BAR_MODES = ["off", "percentage", "gauge"]
+var GAUGE_LOW = 0.2
+
+function normalizeBarMode(value, fallback) {
+  var s = String(value === undefined || value === null ? "" : value).trim().toLowerCase()
+  return BAR_MODES.indexOf(s) >= 0 ? s : fallback
+}
+
+function nextBarMode(mode) {
+  var i = BAR_MODES.indexOf(normalizeBarMode(mode, "off"))
+  return BAR_MODES[(i + 1) % BAR_MODES.length]
+}
+
+// Geometry and tone of the bar-wide gauge for a battery fraction in [0,1].
+// The fill runs from the bar's start edge over `fraction` of its length.
+// `low` flags the urgent tone; `alpha` is the fill opacity against the bar
+// background, slightly stronger when low so it stays visible.
+function gaugeSpec(fraction, charging) {
+  var f = Math.max(0, Math.min(1, Number(fraction) || 0))
+  var low = !charging && f > 0 && f <= GAUGE_LOW
+  return { fraction: f, low: low, alpha: low ? 0.34 : 0.22 }
 }
 
 // The plugin's own entry in shell.json: a bar layout item or a plugins[]
@@ -96,7 +120,9 @@ function normalizeSettings(raw, available) {
     }
   }
   out.clamshell = normalizeBool(s.clamshell, DEFAULTS.clamshell)
-  out.showPercentage = normalizeBool(s.showPercentage, DEFAULTS.showPercentage)
+  // Legacy `showPercentage: true` (pre 0.2.0) reads as the percentage mode.
+  var legacy = normalizeBool(s.showPercentage, false) ? "percentage" : DEFAULTS.barMode
+  out.barMode = normalizeBarMode(s.barMode, legacy)
   return out
 }
 
@@ -356,6 +382,11 @@ if (typeof module !== "undefined") {
     normalizeDelay: normalizeDelay,
     normalizeProfile: normalizeProfile,
     normalizeBool: normalizeBool,
+    BAR_MODES: BAR_MODES,
+    GAUGE_LOW: GAUGE_LOW,
+    normalizeBarMode: normalizeBarMode,
+    nextBarMode: nextBarMode,
+    gaugeSpec: gaugeSpec,
     normalizeSettings: normalizeSettings,
     strategyFor: strategyFor,
     delayLabel: delayLabel,

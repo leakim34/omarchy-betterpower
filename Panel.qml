@@ -275,9 +275,14 @@ Panel {
       root.setChargeLimit(enabled === "true");
       return root.statusJson();
     }
-    function togglePercentage(): string {
+    function setBarMode(mode: string): string {
       if (root.service)
-        root.service.setShowPercentage(!root.settingsView.showPercentage);
+        root.service.setBarMode(mode);
+      return root.statusJson();
+    }
+    function cycleBarMode(): string {
+      if (root.service)
+        root.service.cycleBarMode();
       return root.statusJson();
     }
     function setClamshell(enabled: string): string {
