@@ -1,4 +1,4 @@
-# 0005. Rename to leakz.betterpower / BetterPower
+# 0009. Rename to leakz.betterpower / BetterPower
 
 Date: 2026-09-06
 Status: Accepted. Amends 0002.
