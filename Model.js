@@ -23,7 +23,8 @@ var DEFAULTS = {
   acScreensaver: NEVER,
   acLock: NEVER,
   acSleep: NEVER,
-  clamshell: true
+  clamshell: true,
+  showPercentage: false
 }
 
 // The plugin's own entry in shell.json: a bar layout item or a plugins[]
@@ -95,6 +96,7 @@ function normalizeSettings(raw, available) {
     }
   }
   out.clamshell = normalizeBool(s.clamshell, DEFAULTS.clamshell)
+  out.showPercentage = normalizeBool(s.showPercentage, DEFAULTS.showPercentage)
   return out
 }
 
@@ -264,6 +266,80 @@ function chargeLimitLabel(chargeState, thresholdText) {
   return "On"
 }
 
+// ---- Power draw from real sensors.
+
+var RAPL_LABELS = {
+  "package-0": "CPU package",
+  "core": "CPU cores",
+  "uncore": "Uncore (GPU, cache)",
+  "psys": "Platform"
+}
+var RAPL_ORDER = ["psys", "package-0", "core", "uncore"]
+
+function raplLabel(name) {
+  return RAPL_LABELS[name] || String(name)
+}
+
+// Output of the sample script, one record per line:
+//   battery\t<power_now microwatts or empty>
+//   status\t<Discharging|Charging|...>
+//   rapl\t<name>\t<energy_uj or empty when unreadable>\t<max_energy_range_uj>
+function parsePowerSample(raw, now) {
+  var out = { at: Number(now) || 0, batteryWatts: null, discharging: false, counters: {}, raplPresent: false, raplReadable: false }
+  var lines = String(raw || "").split("\n")
+  for (var i = 0; i < lines.length; i++) {
+    var parts = lines[i].split("\t")
+    var key = String(parts[0] || "").trim()
+    if (key === "battery") {
+      var uw = Number(parts[1])
+      if (String(parts[1] || "").trim() !== "" && isFinite(uw) && uw >= 0) out.batteryWatts = uw / 1e6
+    } else if (key === "status") {
+      out.discharging = String(parts[1] || "").trim().toLowerCase() === "discharging"
+    } else if (key === "rapl") {
+      var name = String(parts[1] || "").trim()
+      if (!name) continue
+      out.raplPresent = true
+      var energy = String(parts[2] || "").trim()
+      var max = Number(parts[3])
+      if (energy !== "" && isFinite(Number(energy))) {
+        out.counters[name] = { energy: Number(energy), max: isFinite(max) && max > 0 ? max : 0 }
+        out.raplReadable = true
+      }
+    }
+  }
+  return out
+}
+
+// Watts per RAPL domain between two samples, wrap-safe on the counter range.
+function powerDraw(prev, next) {
+  var rows = []
+  if (!prev || !next || !(next.at > prev.at)) return rows
+  var seconds = (next.at - prev.at) / 1000
+  var names = Object.keys(next.counters).sort(function(a, b) {
+    var ia = RAPL_ORDER.indexOf(a), ib = RAPL_ORDER.indexOf(b)
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+  })
+  for (var i = 0; i < names.length; i++) {
+    var n = names[i]
+    var p = prev.counters[n]
+    var c = next.counters[n]
+    if (!p || !c) continue
+    var delta = c.energy - p.energy
+    if (delta < 0 && c.max > 0) delta += c.max
+    if (delta < 0) continue
+    rows.push({ name: n, label: raplLabel(n), watts: delta / 1e6 / seconds })
+  }
+  return rows
+}
+
+function wattsLabel(watts) {
+  var w = Number(watts)
+  if (!isFinite(w) || w < 0) return "—"
+  if (w >= 100) return Math.round(w) + " W"
+  if (w >= 10) return w.toFixed(1) + " W"
+  return w.toFixed(2) + " W"
+}
+
 function delayLabel(seconds) {
   var n = normalizeDelay(seconds, NEVER)
   if (n === NEVER) return "Never"
@@ -344,6 +420,10 @@ if (typeof module !== "undefined") {
     CHARGING_PHRASES: CHARGING_PHRASES,
     ON_BATTERY_PHRASES: ON_BATTERY_PHRASES,
     chargeLimitLabel: chargeLimitLabel,
+    raplLabel: raplLabel,
+    parsePowerSample: parsePowerSample,
+    powerDraw: powerDraw,
+    wattsLabel: wattsLabel,
     parseChargeState: parseChargeState,
     chargeCapability: chargeCapability,
     sameIdleConfig: sameIdleConfig,

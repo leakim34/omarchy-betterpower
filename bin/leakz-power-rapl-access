@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Grants or revokes read access to the Intel RAPL energy counters for the
+# wheel group, so the leakz.power panel can show CPU and platform power draw.
+# Run through pkexec by the plugin; safe to run by hand as root.
+#
+#   leakz-power-rapl-access install   write the udev rule and apply it now
+#   leakz-power-rapl-access remove    delete the rule and restore root-only
+set -euo pipefail
+
+RULE=/etc/udev/rules.d/90-leakz-power-rapl.rules
+GROUP=wheel
+
+usage() {
+  echo "usage: ${0##*/} install|remove" >&2
+  exit 2
+}
+
+[[ $# -eq 1 ]] || usage
+case "$1" in
+  install | remove) ;;
+  *) usage ;;
+esac
+
+if [[ $EUID -ne 0 ]]; then
+  echo "${0##*/}: must run as root (the plugin uses pkexec)" >&2
+  exit 1
+fi
+
+counters=(/sys/class/powercap/intel-rapl:*/energy_uj)
+
+if [[ $1 == install ]]; then
+  cat >"$RULE" <<RULE
+# Installed by the leakz.power Omarchy plugin. Lets members of $GROUP read the
+# Intel RAPL energy counters so the panel can show CPU and platform power draw.
+# Remove with: pkexec <plugin dir>/bin/leakz-power-rapl-access remove
+SUBSYSTEM=="powercap", KERNEL=="intel-rapl:*", RUN+="/bin/sh -c 'chgrp $GROUP /sys%p/energy_uj && chmod 0440 /sys%p/energy_uj'"
+RULE
+  for f in "${counters[@]}"; do
+    [[ -e $f ]] || continue
+    chgrp "$GROUP" "$f"
+    chmod 0440 "$f"
+  done
+  udevadm control --reload
+  echo "installed $RULE"
+else
+  rm -f "$RULE"
+  for f in "${counters[@]}"; do
+    [[ -e $f ]] || continue
+    chgrp root "$f"
+    chmod 0400 "$f"
+  done
+  udevadm control --reload
+  echo "removed $RULE"
+fi

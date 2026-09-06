@@ -16,6 +16,17 @@ BarWidget {
     return !!(d && d.isPresent);
   }
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
+  readonly property var settingsView: Model.normalizeSettings(root.settings, [])
+  readonly property bool showPercentage: settingsView.showPercentage && !vertical
+  readonly property int percentage: {
+    var d = UPower.displayDevice;
+    return d && d.isPresent ? Math.round(Number(d.percentage || 0) * 100) : -1;
+  }
+
+  function togglePercentage() {
+    if (root.service)
+      root.service.setShowPercentage(!root.settingsView.showPercentage);
+  }
 
   function injectPanel() {
     var target = panelLoader.item;
@@ -77,10 +88,13 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.icon()
+    text: root.showPercentage && root.percentage >= 0 ? root.percentage + "% " + root.icon() : root.icon()
+    slotSize: Style.bar.iconSlot * (root.showPercentage ? 2 : 1)
     tooltipText: "Power · " + Model.sourceLabel(UPower.onBattery ? "battery" : "ac")
     onPressed: function (b) {
-      if (b === Qt.LeftButton)
+      if (b === Qt.RightButton)
+        root.togglePercentage();
+      else if (b === Qt.LeftButton)
         root.togglePanel();
     }
   }
