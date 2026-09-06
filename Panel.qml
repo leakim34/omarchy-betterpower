@@ -124,14 +124,6 @@ Panel {
   readonly property bool chargeLimitEnabled: service ? service.chargeLimitEnabled : false
   readonly property bool chargeBusy: service ? service.chargeBusy : false
   readonly property bool externalScreen: service ? service.externalScreen : false
-  readonly property var powerRows: service ? service.powerRows : []
-  readonly property bool raplPresent: service ? service.raplPresent : false
-  readonly property bool raplReadable: service ? service.raplReadable : false
-  readonly property bool raplEnableBusy: service ? service.raplEnableBusy : false
-  readonly property string raplEnableError: service ? service.raplEnableError : ""
-  readonly property real batteryWatts: service ? service.batteryWatts : -1
-  readonly property bool dischargingNow: service ? service.discharging : false
-  readonly property bool showRaplEnable: raplPresent && !raplReadable
   readonly property var lidBehavior: service ? service.lidBehavior : Model.lidBehavior(false, false)
 
   // Keyboard cursor over a grid. Row 0 is the protection toggle (when shown),
@@ -141,8 +133,6 @@ Panel {
   // Head controls in order: charge toggle when available, then clamshell.
   readonly property var headKeys: {
     var keys = [];
-    if (showRaplEnable)
-      keys.push("rapl");
     if (chargeCapability.available)
       keys.push("charge");
     keys.push("clamshell");
@@ -154,7 +144,6 @@ Panel {
   readonly property bool cursorActive: cursorRow >= 0
   readonly property string cursorHead: cursorActive && cursorRow < headRows ? headKeys[cursorRow] : ""
   readonly property bool cursorOnCharge: cursorHead === "charge"
-  readonly property bool cursorOnRapl: cursorHead === "rapl"
   readonly property bool cursorOnClamshell: cursorHead === "clamshell"
   readonly property int cursorSource: cursorActive && !cursorOnCharge ? Math.floor((cursorRow - headRows) / rowsPerSource) : -1
   readonly property int cursorKind: cursorActive && !cursorOnCharge ? (cursorRow - headRows) % rowsPerSource : -1
@@ -183,11 +172,6 @@ Panel {
   function setClamshell(enabled) {
     if (service)
       service.setClamshell(enabled);
-  }
-
-  function enableRaplAccess() {
-    if (service)
-      service.enableRaplAccess();
   }
 
   readonly property string heroMeta: {
@@ -239,10 +223,6 @@ Panel {
   function activateCursor() {
     if (!cursorActive)
       return;
-    if (cursorOnRapl) {
-      enableRaplAccess();
-      return;
-    }
     if (cursorOnCharge) {
       setChargeLimit(!chargeLimitEnabled);
       return;
@@ -304,16 +284,10 @@ Panel {
       root.setClamshell(enabled === "true");
       return root.statusJson();
     }
-    function enableRaplAccess(): string {
-      root.enableRaplAccess();
-      return root.statusJson();
-    }
   }
 
   onOpenedChanged: {
     cursorRow = -1;
-    if (service)
-      service.powerSampling = opened;
     if (opened) {
       refreshBattery();
       if (service) {
@@ -500,81 +474,6 @@ Panel {
 
         PanelSeparator {
           foreground: root.foreground
-        }
-
-        // ---------- Power draw from real sensors ----------
-        Column {
-          width: parent.width
-          spacing: Style.spacing.labelGap
-
-          PanelSectionHeader {
-            text: "POWER DRAW"
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-          }
-
-          InfoPair {
-            label: "System"
-            value: root.dischargingNow && root.batteryWatts >= 0 ? Model.wattsLabel(root.batteryWatts) : "Plugged in · not measured"
-          }
-
-          Repeater {
-            model: root.powerRows
-            InfoPair {
-              required property var modelData
-              label: modelData.label
-              value: Model.wattsLabel(modelData.watts)
-            }
-          }
-
-          Text {
-            visible: !root.raplPresent
-            textFormat: Text.PlainText
-            width: parent.width
-            wrapMode: Text.Wrap
-            text: "No CPU energy counters on this machine."
-            color: root.foreground
-            opacity: 0.6
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-          }
-
-          Row {
-            visible: root.showRaplEnable
-            width: parent.width
-            spacing: Style.spacing.lg
-
-            Text {
-              textFormat: Text.PlainText
-              width: parent.width - enableButton.width - parent.spacing
-              wrapMode: Text.Wrap
-              anchors.verticalCenter: parent.verticalCenter
-              text: root.raplEnableError !== "" ? root.raplEnableError : "CPU counters are root-only. Enable installs a udev rule (asks for your password once)."
-              color: root.foreground
-              opacity: 0.6
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.bodySmall
-            }
-
-            Button {
-              id: enableButton
-              anchors.verticalCenter: parent.verticalCenter
-              text: root.raplEnableBusy ? "Waiting…" : "Enable"
-              fontSize: Style.font.bodySmall
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-              bordered: true
-              enabled: !root.raplEnableBusy
-              hasCursor: root.cursorOnRapl
-              onClicked: root.enableRaplAccess()
-              onHovered: function (h) {
-                if (h) {
-                  root.cursorRow = root.headKeys.indexOf("rapl");
-                  root.cursorIndex = 0;
-                }
-              }
-            }
-          }
         }
 
         Toggle {

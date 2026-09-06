@@ -163,36 +163,3 @@ test("charge limit label follows the plugin's UPower state", () => {
   assert.equal(M.chargeLimitLabel({ supported: true, enabled: true, end: 80 }, ""), "80%");
   assert.equal(M.chargeLimitLabel({ supported: true, enabled: true }, ""), "On");
 });
-
-test("power sample parsing: battery, status and RAPL readability", () => {
-  const s = M.parsePowerSample("battery\t12500000\nstatus\tDischarging\nrapl\tpackage-0\t100\t1000\nrapl\tpsys\t\t1000\n", 1000);
-  assert.equal(s.batteryWatts, 12.5);
-  assert.equal(s.discharging, true);
-  assert.equal(s.raplPresent, true);
-  assert.equal(s.raplReadable, true);
-  assert.deepEqual(s.counters, { "package-0": { energy: 100, max: 1000 } });
-  const locked = M.parsePowerSample("battery\t\nstatus\tNot charging\nrapl\tpackage-0\t\t1000\n", 1);
-  assert.equal(locked.batteryWatts, null);
-  assert.equal(locked.raplPresent, true);
-  assert.equal(locked.raplReadable, false);
-  assert.equal(M.parsePowerSample("", 1).raplPresent, false);
-});
-
-test("power draw: watts from two samples, wrap-safe, ordered", () => {
-  const a = M.parsePowerSample("rapl\tcore\t900\t1000\nrapl\tpackage-0\t4000000\t0\nrapl\tpsys\t0\t1000\n", 0);
-  const b = M.parsePowerSample("rapl\tcore\t100\t1000\nrapl\tpackage-0\t6000000\t0\nrapl\tpsys\t3000000\t1000\n", 2000);
-  const rows = M.powerDraw(a, b);
-  assert.deepEqual(rows.map((r) => r.name), ["psys", "package-0", "core"]);
-  assert.equal(rows[1].watts, 1);
-  assert.equal(rows[1].label, "CPU package");
-  assert.equal(rows[2].watts, 0.0001);
-  assert.deepEqual(M.powerDraw(b, a), []);
-  assert.deepEqual(M.powerDraw(null, b), []);
-});
-
-test("watts labels", () => {
-  assert.equal(M.wattsLabel(0.5), "0.50 W");
-  assert.equal(M.wattsLabel(12.34), "12.3 W");
-  assert.equal(M.wattsLabel(150.4), "150 W");
-  assert.equal(M.wattsLabel(-1), "—");
-});

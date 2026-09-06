@@ -330,84 +330,6 @@ Item {
     });
   }
 
-  // -------------------------------------------------------------- power draw
-
-  // Sampled only while the panel asks for it. The script prints one record
-  // per sensor; unreadable RAPL counters print an empty energy field.
-  property bool powerSampling: false
-  property var powerSample: null
-  property var powerRows: []
-  readonly property bool raplPresent: powerSample ? powerSample.raplPresent : false
-  readonly property bool raplReadable: powerSample ? powerSample.raplReadable : false
-  readonly property real batteryWatts: powerSample && powerSample.batteryWatts !== null ? powerSample.batteryWatts : -1
-  readonly property bool discharging: powerSample ? powerSample.discharging : false
-  property bool raplEnableBusy: false
-  property string raplEnableError: ""
-  readonly property string raplHelperPath: String(Qt.resolvedUrl("bin/leakz-power-rapl-access")).replace(/^file:\/\//, "")
-
-  readonly property string powerSampleScript: ['bat=$(ls -d /sys/class/power_supply/BAT* 2>/dev/null | head -n1)', 'if [ -n "$bat" ]; then', '  printf "battery\t%s\n" "$(cat "$bat/power_now" 2>/dev/null)"', '  printf "status\t%s\n" "$(cat "$bat/status" 2>/dev/null)"', 'fi', 'for d in /sys/class/powercap/intel-rapl:*; do', '  [ -e "$d/name" ] || continue', '  printf "rapl\t%s\t%s\t%s\n" "$(cat "$d/name")" "$(cat "$d/energy_uj" 2>/dev/null)" "$(cat "$d/max_energy_range_uj" 2>/dev/null)"', 'done'].join("\n")
-
-  function samplePower() {
-    if (!powerProc.running)
-      powerProc.running = true;
-  }
-
-  Process {
-    id: powerProc
-    command: ["bash", "-c", root.powerSampleScript]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        var next = Model.parsePowerSample(text, Date.now());
-        if (root.powerSample && next.raplReadable)
-          root.powerRows = Model.powerDraw(root.powerSample, next);
-        root.powerSample = next;
-      }
-    }
-  }
-
-  Timer {
-    interval: 2000
-    running: root.powerSampling
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.samplePower()
-  }
-
-  onPowerSamplingChanged: {
-    if (!powerSampling) {
-      powerSample = null;
-      powerRows = [];
-    }
-  }
-
-  // One pkexec prompt, on the user's request only. Denying it leaves the
-  // section as it was, with the reason logged.
-  function enableRaplAccess() {
-    if (raplEnableBusy)
-      return;
-    raplEnableBusy = true;
-    raplEnableError = "";
-    log("rapl-access", "install requested");
-    raplEnableProc.command = ["pkexec", raplHelperPath, "install"];
-    raplEnableProc.running = true;
-  }
-
-  Process {
-    id: raplEnableProc
-    onExited: function (exitCode) {
-      root.raplEnableBusy = false;
-      if (exitCode === 0) {
-        root.log("rapl-access", "installed");
-      } else {
-        root.raplEnableError = exitCode === 126 || exitCode === 127 ? "Authorization was not granted." : "Enabling failed (exit " + exitCode + ").";
-        root.log("rapl-access", "failed exit " + exitCode);
-      }
-      root.powerSample = null;
-      root.samplePower();
-    }
-  }
-
   // ------------------------------------------------------------ charge limit
 
   // Quickshell's UPower module does not expose the charge threshold
@@ -523,15 +445,6 @@ Item {
       screens: root.screenNames,
       lidInhibited: root.lidInhibited,
       lidBehavior: root.lidBehavior,
-      power: {
-        sampling: root.powerSampling,
-        raplPresent: root.raplPresent,
-        raplReadable: root.raplReadable,
-        batteryWatts: root.batteryWatts,
-        discharging: root.discharging,
-        rows: root.powerRows,
-        helper: root.raplHelperPath
-      },
       charge: root.chargeState,
       chargeCapability: root.chargeCapability,
       lockService: !!root.lockService,
