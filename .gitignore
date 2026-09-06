@@ -11,3 +11,7 @@
 
 # claude local state
 .claude/settings.local.json
+
+# kit tooling: local developer scaffolding, not part of the plugin
+.kit/
+.kit.toml

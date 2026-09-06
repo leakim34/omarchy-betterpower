@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-# Owned by kit. Installed via `git config core.hooksPath .kit/hooks` in project mode.
-set -e
-root="$(git rev-parse --show-toplevel)"
-"$root/.kit/run" lint
-"$root/.kit/run" guard

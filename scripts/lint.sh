@@ -31,7 +31,7 @@ if (( ${#qml_files[@]} )); then
     # qmlformat has no --check: compare its output with the file on disk.
     for f in "${qml_files[@]}"; do
       if ! diff -q <("$qmlformat_bin" "$f") "$f" >/dev/null; then
-        echo "lint: $f is not qmlformat-formatted (run .kit/run format)" >&2
+        echo "lint: $f is not qmlformat-formatted (run scripts/format.sh)" >&2
         status=1
       fi
     done

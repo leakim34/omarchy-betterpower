@@ -117,8 +117,8 @@ was last applied; they are ordinary Omarchy settings you can change from the bui
 ## Hardware notes
 
 - Lenovo (ideapad, Legion, Yoga): protection is the firmware conservation mode. Enabling then
-  disabling it leaves the charge type at `Standard` even if it was `Fast` before; set it back with
-  `echo Fast | sudo tee /sys/class/power_supply/BAT*/charge_types`.
+  disabling it leaves the charge type at `Standard` even if it was `Fast` before; set it back by
+  writing `Fast` to `/sys/class/power_supply/BAT*/charge_types` as root.
 - ThinkPad, ASUS, Framework: UPower reports start and end thresholds. The toggle enables them
   with the values UPower holds; picking a percentage is planned.
 - No charge control reported: the control is replaced by a one-line note.
@@ -126,10 +126,10 @@ was last applied; they are ordinary Omarchy settings you can change from the bui
 ## Development
 
 ```bash
-.kit/run test              # node tests over Model.js and the manifest validator
-.kit/run lint              # manifest validation, qmlformat, shellcheck
-.kit/run run               # link into ~/.config/omarchy/plugins and rescan
-.kit/run run --restart     # restart the shell (needed after Panel.qml or Service.qml changes)
+node --test 'tests/**/*.test.js'   # tests over Model.js and the manifest validator
+scripts/lint.sh                    # manifest validation, qmlformat, shellcheck
+scripts/run.sh                     # link into ~/.config/omarchy/plugins and rescan
+scripts/run.sh --restart           # restart the shell (needed after Panel.qml or Service.qml changes)
 ```
 
 See `docs/architecture.md` and `docs/adr/` for the design. Issues and ideas are welcome on the

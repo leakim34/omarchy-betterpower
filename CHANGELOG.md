@@ -5,6 +5,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+
+- Developer scaffolding (`.kit/`) is no longer tracked; CI installs nothing with sudo. The README no longer shows a sudo command in the hardware notes.
+
 ## [0.2.1] - 2026-09-06
 
 ### Fixed
