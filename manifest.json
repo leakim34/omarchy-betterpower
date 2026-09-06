@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "leakz.betterpower",
   "name": "BetterPower",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": "leakz",
   "license": "MIT",
   "description": "Power profile, screensaver, lock and sleep per power source, battery protection, clamshell lid control, and a bar-wide battery gauge",
