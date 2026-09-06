@@ -26,6 +26,96 @@ Panel {
   readonly property bool batteryPresent: !!(device && device.isPresent)
   readonly property string source: UPower.onBattery ? "battery" : "ac"
   readonly property int percentage: batteryPresent ? Math.round(Number(device.percentage || 0) * 100) : -1
+  readonly property var upowerStates: ({
+      Charging: UPowerDeviceState.Charging,
+      Discharging: UPowerDeviceState.Discharging,
+      FullyCharged: UPowerDeviceState.FullyCharged,
+      PendingCharge: UPowerDeviceState.PendingCharge
+    })
+  readonly property bool onBattery: UPower.onBattery
+  readonly property real batteryFraction: Model.batteryFraction(device)
+  readonly property bool chargeThresholdActive: Model.chargeThresholdActive(device, onBattery, upowerStates)
+  readonly property bool fullyCharged: batteryPresent && device.state === UPowerDeviceState.FullyCharged && !chargeThresholdActive
+  readonly property bool batteryFull: fullyCharged || (!onBattery && batteryFraction >= 1)
+  readonly property bool charging: batteryPresent && !onBattery && !batteryFull && !chargeThresholdActive
+  readonly property string batteryIcon: Model.batteryIcon(device, onBattery, upowerStates)
+  readonly property string modeLabel: Model.modeLabel(device, onBattery, upowerStates)
+
+  // Stats from omarchy-battery-status, refreshed while the panel is open.
+  property var batteryInfo: ({})
+  property int phraseIndex: 0
+  readonly property var activePhrases: fullyCharged ? [] : (charging ? Model.CHARGING_PHRASES : (onBattery && batteryPresent ? Model.ON_BATTERY_PHRASES : []))
+  readonly property bool rotatingPhrases: activePhrases.length > 0
+  readonly property string heroStatusText: fullyCharged ? "Fully charged" : (rotatingPhrases ? activePhrases[phraseIndex % activePhrases.length] : modeLabel)
+  readonly property string chargeLimitText: Model.chargeLimitLabel(service ? service.chargeState : null, batteryInfo.threshold || "")
+
+  function updateBatteryInfo(raw) {
+    var next = Model.parseKeyValue(raw);
+    // Keep last known good data across a transient empty read (plug events).
+    if (Object.keys(next).length === 0)
+      return;
+    batteryInfo = next;
+  }
+
+  Process {
+    id: batteryProc
+    command: ["omarchy-battery-status", "--shell"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.updateBatteryInfo(text)
+    }
+  }
+
+  function refreshBattery() {
+    if (batteryPresent && !batteryProc.running)
+      batteryProc.running = true;
+  }
+
+  Timer {
+    interval: 5000
+    running: root.opened
+    repeat: true
+    onTriggered: root.refreshBattery()
+  }
+
+  Timer {
+    interval: 2800
+    running: root.opened && root.rotatingPhrases
+    repeat: true
+    onTriggered: phraseSwap.restart()
+  }
+
+  SequentialAnimation {
+    id: phraseSwap
+    PropertyAnimation {
+      target: heroStatus
+      property: "opacity"
+      to: 0.0
+      duration: 180
+      easing.type: Easing.OutQuad
+    }
+    ScriptAction {
+      script: {
+        var n = root.activePhrases.length;
+        if (n > 0)
+          root.phraseIndex = (root.phraseIndex + 1) % n;
+      }
+    }
+    PropertyAnimation {
+      target: heroStatus
+      property: "opacity"
+      to: 1.0
+      duration: 260
+      easing.type: Easing.InQuad
+    }
+  }
+
+  onRotatingPhrasesChanged: {
+    if (!rotatingPhrases) {
+      phraseSwap.stop();
+      heroStatus.opacity = 1.0;
+    }
+  }
   readonly property var profiles: service ? service.profiles : []
   readonly property var profileOptions: Model.profileOptions(profiles)
   readonly property var settingsView: Model.normalizeSettings(root.settings, profiles)
@@ -187,9 +277,12 @@ Panel {
 
   onOpenedChanged: {
     cursorRow = -1;
-    if (opened && service) {
-      service.refreshProfiles();
-      service.refreshCharge();
+    if (opened) {
+      refreshBattery();
+      if (service) {
+        service.refreshProfiles();
+        service.refreshCharge();
+      }
     }
   }
 
@@ -222,19 +315,148 @@ Panel {
         anchors.top: parent.top
         spacing: Style.spacing.panelGap
 
-        PanelHero {
+        // ---------- Hero: battery icon · title/status · percentage ----------
+        Item {
           width: parent.width
-          title: "Power"
-          meta: root.heroMeta
-          foreground: root.foreground
-          fontFamily: root.fontFamily
-          iconComponent: Component {
+          implicitHeight: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight, heroPercent.implicitHeight)
+
+          Text {
+            id: heroIcon
+            textFormat: Text.PlainText
+            text: root.batteryIcon
+            color: root.foreground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.display
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            Behavior on color {
+              ColorAnimation {
+                duration: 200
+              }
+            }
+          }
+
+          Column {
+            id: heroLabels
+            anchors.left: heroIcon.right
+            anchors.leftMargin: Style.spacing.xxxl
+            anchors.right: heroPercent.left
+            anchors.rightMargin: Style.spacing.xl
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.spacing.xxs
+
             Text {
-              textFormat: Text.PlainText
-              text: root.hostWidget && typeof root.hostWidget.icon === "function" ? root.hostWidget.icon() : "󰚥"
+              text: "Battery"
               color: root.foreground
               font.family: root.fontFamily
-              font.pixelSize: Style.font.display
+              font.pixelSize: Style.font.title
+              font.bold: true
+              elide: Text.ElideRight
+              width: parent.width
+            }
+
+            Text {
+              id: heroStatus
+              textFormat: Text.PlainText
+              text: root.heroStatusText.toUpperCase()
+              color: Qt.darker(root.foreground, 1.4)
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              font.bold: true
+              font.letterSpacing: 1.2
+              elide: Text.ElideRight
+              width: parent.width
+            }
+          }
+
+          Text {
+            id: heroPercent
+            textFormat: Text.PlainText
+            text: root.batteryPresent ? root.percentage + "%" : "—"
+            color: root.foreground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.displayLarge
+            font.bold: true
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+          }
+        }
+
+        // ---------- Battery progress bar ----------
+        Item {
+          width: parent.width
+          implicitHeight: Style.spacing.lg
+
+          Rectangle {
+            id: barTrack
+            anchors.fill: parent
+            radius: height / 2
+            color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.12)
+          }
+
+          Rectangle {
+            anchors.left: barTrack.left
+            anchors.verticalCenter: barTrack.verticalCenter
+            height: barTrack.height
+            radius: barTrack.radius
+            color: root.foreground
+            width: Math.max(barTrack.height, barTrack.width * root.batteryFraction)
+            Behavior on width {
+              NumberAnimation {
+                duration: 320
+                easing.type: Easing.OutCubic
+              }
+            }
+            // Subtle pulse while charging: energy is flowing in.
+            SequentialAnimation on opacity {
+              running: root.charging && root.opened
+              loops: Animation.Infinite
+              alwaysRunToEnd: true
+              NumberAnimation {
+                from: 1.0
+                to: 0.55
+                duration: 950
+                easing.type: Easing.InOutSine
+              }
+              NumberAnimation {
+                from: 0.55
+                to: 1.0
+                duration: 950
+                easing.type: Easing.InOutSine
+              }
+            }
+          }
+        }
+
+        // ---------- Stats ----------
+        Row {
+          visible: root.batteryInfo.percentage !== undefined
+          width: parent.width
+          spacing: Style.spacing.huge
+
+          Column {
+            width: (parent.width - parent.spacing) / 2
+            spacing: Style.spacing.labelGap
+            InfoPair {
+              label: "Battery size"
+              value: root.batteryInfo.size || ""
+            }
+            InfoPair {
+              label: "Charge cycles"
+              value: root.batteryInfo.cycles || "—"
+            }
+          }
+
+          Column {
+            width: (parent.width - parent.spacing) / 2
+            spacing: Style.spacing.labelGap
+            InfoPair {
+              label: root.chargeThresholdActive ? "Charge limit" : (root.onBattery ? "Time left" : "Time to full")
+              value: root.chargeThresholdActive ? root.chargeLimitText : (root.batteryFull ? "-" : (root.batteryInfo.time || "—"))
+            }
+            InfoPair {
+              label: root.chargeThresholdActive ? "Battery state" : (root.onBattery ? "Discharging" : "Charging")
+              value: root.chargeThresholdActive ? "Holding" : (root.batteryFull ? "-" : (root.batteryInfo.rate || ""))
             }
           }
         }
@@ -399,6 +621,34 @@ Panel {
           }
         }
       }
+    }
+  }
+
+  component InfoPair: Row {
+    property string label: ""
+    property string value: ""
+    width: parent.width
+    spacing: Style.spacing.lg
+    Text {
+      id: pairLabel
+      textFormat: Text.PlainText
+      text: label
+      color: root.foreground
+      opacity: 0.6
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.bodySmall
+    }
+    Item {
+      width: Math.max(0, parent.width - pairLabel.implicitWidth - pairValue.implicitWidth - parent.spacing * 2)
+      height: 1
+    }
+    Text {
+      id: pairValue
+      textFormat: Text.PlainText
+      text: value
+      color: root.foreground
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.bodySmall
     }
   }
 }

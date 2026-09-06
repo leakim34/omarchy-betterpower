@@ -196,6 +196,74 @@ function lidBehavior(clamshell, external) {
   return { inhibit: false, description: "Closing the lid follows the system's lid setting." }
 }
 
+// ---- Battery hero. Ported from the first-party power panel (Omarchy,
+// shell/plugins/panels/power/Model.js) so both panels read the same way.
+
+// Output of `omarchy-battery-status --shell`: "key\tvalue" lines.
+function parseKeyValue(raw) {
+  var next = {}
+  var lines = String(raw || "").split("\n")
+  for (var i = 0; i < lines.length; i++) {
+    var idx = lines[i].indexOf("\t")
+    if (idx <= 0) continue
+    next[lines[i].substring(0, idx)] = lines[i].substring(idx + 1).trim()
+  }
+  return next
+}
+
+function batteryFraction(device) {
+  return device && device.isPresent ? Math.max(0, Math.min(1, Number(device.percentage) || 0)) : 0
+}
+
+// `states` carries the UPowerDeviceState enum values the QML side knows.
+function chargeThresholdActive(device, onBattery, states) {
+  var d = device || {}
+  var s = states || {}
+  if (!(d.isPresent && !onBattery)) return false
+  var fraction = batteryFraction(d)
+  if (d.state === s.Discharging) return false
+  if (d.state === s.PendingCharge) return true
+  if (d.state === s.FullyCharged && fraction < 0.99) return true
+  if (d.state !== s.Charging || fraction >= 0.99) return false
+  return Number(d.changeRate || 0) <= 0.2 || Number(d.timeToFull || 0) >= 8 * 60 * 60
+}
+
+var CHARGING_ICONS = ["󰢜", "󰂆", "󰂇", "󰂈", "󰢝", "󰂉", "󰢞", "󰂊", "󰂋", "󰂅"]
+var LEVEL_ICONS = ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+
+function batteryIcon(device, onBattery, states) {
+  var d = device || {}
+  if (!d.isPresent) return "󰚥"
+  var index = Math.max(0, Math.min(9, Math.floor(batteryFraction(d) * 10)))
+  if (chargeThresholdActive(d, onBattery, states)) return LEVEL_ICONS[index]
+  if (states && d.state === states.FullyCharged) return "󰂅"
+  if (!onBattery) return CHARGING_ICONS[index]
+  return LEVEL_ICONS[index]
+}
+
+function modeLabel(device, onBattery, states) {
+  var d = device || {}
+  if (!d.isPresent) return "No battery"
+  if (chargeThresholdActive(d, onBattery, states)) return "Threshold"
+  if (onBattery) return "On battery"
+  if (batteryFraction(d) >= 1) return "Fully charged"
+  return "Charging"
+}
+
+var CHARGING_PHRASES = ["Pumping power", "Injecting electrons", "Pouring juice", "Amassing watts", "Hoarding joules", "Topping reserves", "Soaking amps"]
+var ON_BATTERY_PHRASES = ["Slurping power", "Spending joules", "Draining watts", "Burning electrons", "Sipping juice", "Munching reserves"]
+
+// What the charge limit cell reads: the plugin's live UPower state, with the
+// threshold string from omarchy-battery-status when the hardware reports one.
+function chargeLimitLabel(chargeState, thresholdText) {
+  var s = chargeState || {}
+  if (!s.supported) return "-"
+  if (!s.enabled) return "Off"
+  if (thresholdText) return String(thresholdText)
+  if (Number(s.end) > 0) return s.end + "%"
+  return "On"
+}
+
 function delayLabel(seconds) {
   var n = normalizeDelay(seconds, NEVER)
   if (n === NEVER) return "Never"
@@ -268,6 +336,14 @@ if (typeof module !== "undefined") {
     isExternalScreen: isExternalScreen,
     hasExternalScreen: hasExternalScreen,
     lidBehavior: lidBehavior,
+    parseKeyValue: parseKeyValue,
+    batteryFraction: batteryFraction,
+    chargeThresholdActive: chargeThresholdActive,
+    batteryIcon: batteryIcon,
+    modeLabel: modeLabel,
+    CHARGING_PHRASES: CHARGING_PHRASES,
+    ON_BATTERY_PHRASES: ON_BATTERY_PHRASES,
+    chargeLimitLabel: chargeLimitLabel,
     parseChargeState: parseChargeState,
     chargeCapability: chargeCapability,
     sameIdleConfig: sameIdleConfig,

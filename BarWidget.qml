@@ -47,24 +47,12 @@ BarWidget {
   }
 
   function icon() {
-    var d = UPower.displayDevice;
-    if (!d || !d.isPresent)
-      return "󰚥";
-    var pct = Math.round(Number(d.percentage || 0) * 100);
-    var charging = !UPower.onBattery;
-    if (charging)
-      return "󰂄";
-    if (pct >= 90)
-      return "󰁹";
-    if (pct >= 70)
-      return "󰂁";
-    if (pct >= 50)
-      return "󰁿";
-    if (pct >= 30)
-      return "󰁽";
-    if (pct >= 10)
-      return "󰁻";
-    return "󰂎";
+    return Model.batteryIcon(UPower.displayDevice, UPower.onBattery, {
+      Charging: UPowerDeviceState.Charging,
+      Discharging: UPowerDeviceState.Discharging,
+      FullyCharged: UPowerDeviceState.FullyCharged,
+      PendingCharge: UPowerDeviceState.PendingCharge
+    });
   }
 
   visible: true

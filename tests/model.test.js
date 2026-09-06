@@ -135,3 +135,29 @@ test("lid behavior inhibits only with the toggle on and an external screen", () 
   assert.equal(M.lidBehavior(false, true).inhibit, false);
   assert.match(M.lidBehavior(true, false).description, /No external screen/);
 });
+
+const STATES = { Charging: 1, Discharging: 2, FullyCharged: 4, PendingCharge: 5 };
+
+test("battery hero: key/value parsing, fraction, icon and label", () => {
+  assert.deepEqual(M.parseKeyValue("percentage\t83%\nstate\tpending-charge\nbad line\n"), { percentage: "83%", state: "pending-charge" });
+  assert.equal(M.batteryFraction({ isPresent: true, percentage: 0.83 }), 0.83);
+  assert.equal(M.batteryFraction({ isPresent: false, percentage: 0.5 }), 0);
+  const holding = { isPresent: true, percentage: 0.83, state: STATES.PendingCharge };
+  assert.equal(M.chargeThresholdActive(holding, false, STATES), true);
+  assert.equal(M.chargeThresholdActive(holding, true, STATES), false);
+  assert.equal(M.modeLabel(holding, false, STATES), "Threshold");
+  assert.equal(M.modeLabel({ isPresent: true, percentage: 0.5, state: STATES.Discharging }, true, STATES), "On battery");
+  assert.equal(M.modeLabel({ isPresent: true, percentage: 1, state: STATES.FullyCharged }, false, STATES), "Fully charged");
+  assert.equal(M.modeLabel({ isPresent: false }, false, STATES), "No battery");
+  assert.equal(M.batteryIcon({ isPresent: true, percentage: 0.5, state: STATES.Charging, changeRate: 20 }, false, STATES), "󰂉");
+  assert.equal(M.batteryIcon({ isPresent: true, percentage: 0.5, state: STATES.Discharging }, true, STATES), "󰁿");
+  assert.equal(M.batteryIcon({ isPresent: false }, true, STATES), "󰚥");
+});
+
+test("charge limit label follows the plugin's UPower state", () => {
+  assert.equal(M.chargeLimitLabel({ supported: false }, ""), "-");
+  assert.equal(M.chargeLimitLabel({ supported: true, enabled: false }, "80%"), "Off");
+  assert.equal(M.chargeLimitLabel({ supported: true, enabled: true }, "60-80%"), "60-80%");
+  assert.equal(M.chargeLimitLabel({ supported: true, enabled: true, end: 80 }, ""), "80%");
+  assert.equal(M.chargeLimitLabel({ supported: true, enabled: true }, ""), "On");
+});
