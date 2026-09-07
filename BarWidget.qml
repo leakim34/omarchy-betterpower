@@ -209,7 +209,8 @@ BarWidget {
     bar: root.bar
     text: root.showPercentage && root.percentage >= 0 ? root.percentage + "% " + root.icon() : root.icon()
     slotSize: Style.bar.iconSlot * (root.showPercentage ? 2 : 1)
-    tooltipText: "Power · " + Model.sourceLabel(UPower.onBattery ? "battery" : "ac")
+    // On a desktop the source never changes, so the tooltip names the profile.
+    tooltipText: "Power · " + (root.batteryPresent ? Model.sourceLabel(UPower.onBattery ? "battery" : "ac") : Model.heroFallbackStatus(UPower.displayDevice, UPower.onBattery, null, root.service ? root.service.activeProfile : ""))
     onPressed: function (b) {
       if (b === Qt.RightButton)
         root.cycleBarMode();

@@ -7,6 +7,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ### Changed
 
+- The plugin adapts to the hardware. Without a battery (a desktop) the panel shows one plugged-in strategy, a hero that names the active profile, and no battery hero, stats, protection toggle or note; the bar's percentage and gauge modes are inert and a right click leaves the mode alone; no battery profile is persisted. Without a lid switch the clamshell toggle is gone and no lid inhibitor is ever held. `status` reports `hardware`, `lidPresent` and `lidProbed`.
 - Developer scaffolding (`.kit/`) is no longer tracked; CI installs nothing with sudo. The README no longer shows a sudo command in the hardware notes.
 
 ## [0.2.1] - 2026-09-06

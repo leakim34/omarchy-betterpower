@@ -42,7 +42,8 @@ function barModeShows(mode) {
   return { percentage: m === "percentage" || m === "both", gauge: m === "gauge" || m === "both" }
 }
 
-function nextBarMode(mode) {
+function nextBarMode(mode, batteryPresent) {
+  if (batteryPresent === false) return "off"
   var i = BAR_MODES.indexOf(normalizeBarMode(mode, "off"))
   return BAR_MODES[(i + 1) % BAR_MODES.length]
 }
@@ -82,6 +83,36 @@ function sourceKey(source, field) {
 
 function sourceLabel(source) {
   return source === "battery" ? "On battery" : "Plugged in"
+}
+
+// What this machine offers, decided once from UPower's display device and the
+// lid probe, so the service, the panel and the bar hide the same things. A
+// desktop has one source, no battery hero, no charge control, no gauge; a
+// machine without a lid has no clamshell toggle.
+function hardware(batteryPresent, lidPresent) {
+  var battery = !!batteryPresent
+  return {
+    battery: battery,
+    lid: !!lidPresent,
+    sources: battery ? SOURCES.slice() : ["ac"],
+    chargeControl: battery,
+    clamshell: !!lidPresent,
+    gauge: battery
+  }
+}
+
+// Output of `ls /proc/acpi/button/lid`: one entry per lid switch, empty
+// when the machine has none.
+function parseLidProbe(raw) {
+  return String(raw || "").trim().length > 0
+}
+
+// Section header per source. The NOW marker only means something when there
+// is another source to switch to.
+function sourceHeader(source, current, sources) {
+  var list = Array.isArray(sources) ? sources : SOURCES
+  var label = sourceLabel(source).toUpperCase()
+  return list.length > 1 && current ? label + "  \u00b7  NOW" : label
 }
 
 function normalizeDelay(value, fallback) {
@@ -220,7 +251,11 @@ function hasExternalScreen(names) {
 }
 
 // Whether the lid inhibitor must be held, and the sentence the panel shows.
-function lidBehavior(clamshell, external) {
+// `lid` is false on a machine with no lid switch; undefined reads as present.
+function lidBehavior(clamshell, external, lid) {
+  if (lid === false) {
+    return { inhibit: false, description: "This machine has no lid." }
+  }
   if (!external) {
     return { inhibit: false, description: "No external screen: closing the lid locks and follows the system's lid setting." }
   }
@@ -273,6 +308,17 @@ function batteryIcon(device, onBattery, states) {
   if (states && d.state === states.FullyCharged) return "󰂅"
   if (!onBattery) return CHARGING_ICONS[index]
   return LEVEL_ICONS[index]
+}
+
+// Hero title and status line. Without a battery the hero is about power,
+// not charge: it names the active profile.
+function heroTitle(batteryPresent) {
+  return batteryPresent ? "Battery" : "Power"
+}
+
+function heroFallbackStatus(device, onBattery, states, activeProfile) {
+  if (device && device.isPresent) return modeLabel(device, onBattery, states)
+  return activeProfile ? profileLabel(activeProfile) : "Plugged in"
 }
 
 function modeLabel(device, onBattery, states) {
@@ -385,6 +431,11 @@ if (typeof module !== "undefined") {
     findEntry: findEntry,
     sourceKey: sourceKey,
     sourceLabel: sourceLabel,
+    hardware: hardware,
+    parseLidProbe: parseLidProbe,
+    sourceHeader: sourceHeader,
+    heroTitle: heroTitle,
+    heroFallbackStatus: heroFallbackStatus,
     normalizeDelay: normalizeDelay,
     normalizeProfile: normalizeProfile,
     normalizeBool: normalizeBool,

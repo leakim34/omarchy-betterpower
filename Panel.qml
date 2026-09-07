@@ -39,7 +39,13 @@ Panel {
   readonly property bool batteryFull: fullyCharged || (!onBattery && batteryFraction >= 1)
   readonly property bool charging: batteryPresent && !onBattery && !batteryFull && !chargeThresholdActive
   readonly property string batteryIcon: Model.batteryIcon(device, onBattery, upowerStates)
-  readonly property string modeLabel: Model.modeLabel(device, onBattery, upowerStates)
+  readonly property string modeLabel: Model.heroFallbackStatus(device, onBattery, upowerStates, activeProfile)
+
+  // What this machine offers; the service decides once, the panel hides the
+  // rest. Before the service is up, assume the least: no battery, no lid.
+  readonly property var hardware: service ? service.hardware : Model.hardware(batteryPresent, false)
+  readonly property var sources: hardware.sources
+  readonly property string activeProfile: service ? service.activeProfile : ""
 
   // Stats from omarchy-battery-status, refreshed while the panel is open.
   property var batteryInfo: ({})
@@ -47,6 +53,7 @@ Panel {
   readonly property var activePhrases: fullyCharged ? [] : (charging ? Model.CHARGING_PHRASES : (onBattery && batteryPresent ? Model.ON_BATTERY_PHRASES : []))
   readonly property bool rotatingPhrases: activePhrases.length > 0
   readonly property string heroStatusText: fullyCharged ? "Fully charged" : (rotatingPhrases ? activePhrases[phraseIndex % activePhrases.length] : modeLabel)
+  readonly property string heroTitle: Model.heroTitle(batteryPresent)
   readonly property string chargeLimitText: Model.chargeLimitLabel(service ? service.chargeState : null, batteryInfo.threshold || "")
 
   function updateBatteryInfo(raw) {
@@ -130,14 +137,18 @@ Panel {
   // then each source owns two rows: profile buttons, delay dropdowns.
   // -1 means the cursor is parked.
   readonly property int rowsPerSource: 2
-  // Head controls in order: charge toggle when available, then clamshell.
+  // Head controls in order: charge toggle when available, then clamshell on a
+  // machine with a lid. Both may be absent (a desktop): the head is then empty.
   readonly property var headKeys: {
     var keys = [];
     if (chargeCapability.available)
       keys.push("charge");
-    keys.push("clamshell");
+    if (hardware.clamshell)
+      keys.push("clamshell");
     return keys;
   }
+  readonly property bool chargeNoteVisible: hardware.battery && !chargeCapability.available
+  readonly property bool headVisible: headKeys.length > 0 || chargeNoteVisible
   readonly property int headRows: headKeys.length
   property int cursorRow: -1
   property int cursorIndex: 0
@@ -174,13 +185,6 @@ Panel {
       service.setClamshell(enabled);
   }
 
-  readonly property string heroMeta: {
-    if (!batteryPresent)
-      return "NO BATTERY";
-    var s = Model.sourceLabel(source).toUpperCase();
-    return s + " · " + percentage + "%";
-  }
-
   function statusJson() {
     var status = service ? JSON.parse(service.statusJson()) : {
       service: "not loaded"
@@ -204,9 +208,9 @@ Panel {
   }
 
   function moveCursor(dx, dy) {
-    var rows = headRows + Model.SOURCES.length * rowsPerSource;
+    var rows = headRows + sources.length * rowsPerSource;
     if (!cursorActive) {
-      cursorRow = headRows + Model.SOURCES.indexOf(source) * rowsPerSource;
+      cursorRow = headRows + Math.max(0, sources.indexOf(source)) * rowsPerSource;
       cursorIndex = Math.max(0, profileOptions.map(function (o) {
         return o.value;
       }).indexOf(settingsView[Model.sourceKey(source, "profile")]));
@@ -233,8 +237,8 @@ Panel {
       return;
     }
     if (cursorKind === 0) {
-      if (cursorIndex < profileOptions.length)
-        setProfile(Model.SOURCES[cursorSource], profileOptions[cursorIndex].value);
+      if (cursorIndex < profileOptions.length && cursorSource < sources.length)
+        setProfile(sources[cursorSource], profileOptions[cursorIndex].value);
       return;
     }
     var control = delayControls[cursorSource + ":" + cursorIndex];
@@ -362,7 +366,7 @@ Panel {
             spacing: Style.spacing.xxs
 
             Text {
-              text: "Battery"
+              text: root.heroTitle
               color: root.foreground
               font.family: root.fontFamily
               font.pixelSize: Style.font.title
@@ -387,8 +391,9 @@ Panel {
 
           Text {
             id: heroPercent
+            visible: root.batteryPresent
             textFormat: Text.PlainText
-            text: root.batteryPresent ? root.percentage + "%" : "—"
+            text: root.batteryPresent ? root.percentage + "%" : ""
             color: root.foreground
             font.family: root.fontFamily
             font.pixelSize: Style.font.displayLarge
@@ -400,6 +405,7 @@ Panel {
 
         // ---------- Battery progress bar ----------
         Item {
+          visible: root.batteryPresent
           width: parent.width
           implicitHeight: Style.spacing.lg
 
@@ -478,6 +484,7 @@ Panel {
         }
 
         PanelSeparator {
+          visible: root.headVisible
           foreground: root.foreground
         }
 
@@ -502,6 +509,7 @@ Panel {
         }
 
         Toggle {
+          visible: root.hardware.clamshell
           width: parent.width
           label: "Keep running when the lid closes"
           description: root.lidBehavior.description
@@ -522,7 +530,7 @@ Panel {
         }
 
         Text {
-          visible: !root.chargeCapability.available
+          visible: root.chargeNoteVisible
           textFormat: Text.PlainText
           width: parent.width
           wrapMode: Text.Wrap
@@ -538,7 +546,7 @@ Panel {
         }
 
         Repeater {
-          model: Model.SOURCES
+          model: root.sources
           Column {
             id: sourceSection
             required property var modelData
@@ -555,7 +563,7 @@ Panel {
             }
 
             PanelSectionHeader {
-              text: Model.sourceLabel(sourceSection.src).toUpperCase() + (sourceSection.current ? "  ·  NOW" : "")
+              text: Model.sourceHeader(sourceSection.src, sourceSection.current, root.sources)
               foreground: root.foreground
               fontFamily: root.fontFamily
             }

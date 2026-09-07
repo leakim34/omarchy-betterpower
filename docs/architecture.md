@@ -33,7 +33,9 @@ effective idle timings are, whether a capability is supported from the UPower bi
 what the clamshell state label reads, preset lists and their labels. Everything the tests cover
 lives here. It must never touch a process, a file or a D-Bus object.
 
-**Service.qml** (kind `service`). The policy engine. Watches `UPower.onBattery`, the UPower
+**Service.qml** (kind `service`). The policy engine. Probes the lid switch once at startup and
+derives, with the UPower battery device, the `hardware` capability set from Model.js that every
+module hides controls by. Watches `UPower.onBattery`, the UPower
 battery device, `Quickshell.screens` and the plugin settings. On each change it computes the
 target state through Model.js and applies the difference: writes idle timings and stay-awake
 through the first-party idle service, persists the profile choice through
@@ -62,7 +64,9 @@ the battery level across the whole bar (ADR 0010).
   which polkit allows for the active session. Numeric thresholds, if they ever land, follow
   `docs/privileged-conventions.md`. (ADR: system integration)
 - Every capability is detected before its control is shown. Unsupported hardware hides the
-  control with a one-line reason. (kind conventions)
+  control with a one-line reason. The set is computed once, in `Model.hardware`, from the
+  battery presence and the lid probe: a desktop gets one source and no battery feature at all,
+  a machine without a lid gets no clamshell. (kind conventions)
 - Runtime state the plugin owns (lid inhibitor, sleep timer) lives in the shell process and
   dies with it. The only on-disk state is the settings entry in `shell.json` and the state files
   Omarchy already owns. Disable and removal must leave nothing else. (ADR: settings and state)

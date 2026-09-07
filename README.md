@@ -65,6 +65,16 @@ bars alike. It never touches the bar's own settings.
 Nothing needs root. Nothing is written at startup: the plugin waits two seconds, remembers what
 is already in effect, and only acts on a power source switch or a change you make.
 
+### It follows the hardware
+
+What the panel and the bar show is decided from what the machine reports, once at startup:
+
+| Hardware | Effect |
+|---|---|
+| No battery (a desktop) | One strategy, plugged in, with no "now" marker. The hero names the active profile instead of a charge level; no progress bar, no stats, no battery protection. The bar keeps its plug icon; the `percentage` and `gauge` modes show nothing and a right click leaves the mode alone. The `battery*` settings are kept but never applied |
+| No lid switch (`/proc/acpi/button/lid` absent) | No clamshell toggle and no lid inhibitor, even with an external screen |
+| Battery without charge control | The protection toggle is replaced by a one-line note |
+
 ## Settings
 
 Inline on the plugin's entry in `~/.config/omarchy/shell.json`, editable from the panel or the
@@ -122,6 +132,7 @@ was last applied; they are ordinary Omarchy settings you can change from the bui
 - ThinkPad, ASUS, Framework: UPower reports start and end thresholds. The toggle enables them
   with the values UPower holds; picking a percentage is planned.
 - No charge control reported: the control is replaced by a one-line note.
+- No battery at all: see [It follows the hardware](#it-follows-the-hardware).
 
 ## Development
 

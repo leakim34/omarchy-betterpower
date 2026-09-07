@@ -186,3 +186,55 @@ test("gauge spec clamps the fraction and flags low battery unless charging", () 
   assert.equal(M.gaugeSpec(3, false).fraction, 1);
   assert.equal(M.gaugeSpec("x", false).fraction, 0);
 });
+
+test("hardware: a desktop has one source and none of the battery features", () => {
+  const desktop = M.hardware(false, false);
+  assert.deepEqual(desktop.sources, ["ac"]);
+  assert.equal(desktop.battery, false);
+  assert.equal(desktop.chargeControl, false);
+  assert.equal(desktop.gauge, false);
+  assert.equal(desktop.clamshell, false);
+  const laptop = M.hardware(true, true);
+  assert.deepEqual(laptop.sources, M.SOURCES);
+  assert.equal(laptop.battery, true);
+  assert.equal(laptop.clamshell, true);
+  // A laptop whose lid probe failed keeps its battery features but no clamshell.
+  assert.equal(M.hardware(true, false).clamshell, false);
+  assert.equal(M.hardware(undefined, undefined).battery, false);
+});
+
+test("lid probe reads the /proc/acpi/button/lid listing", () => {
+  assert.equal(M.parseLidProbe("LID0\n"), true);
+  assert.equal(M.parseLidProbe(""), false);
+  assert.equal(M.parseLidProbe("  \n"), false);
+  assert.equal(M.parseLidProbe(null), false);
+});
+
+test("lid behavior never inhibits on a machine without a lid", () => {
+  const none = M.lidBehavior(true, true, false);
+  assert.equal(none.inhibit, false);
+  assert.match(none.description, /no lid/);
+  assert.equal(M.lidBehavior(true, true, true).inhibit, true);
+  assert.equal(M.lidBehavior(true, true, undefined).inhibit, true);
+});
+
+test("source header marks NOW only when there is another source", () => {
+  assert.equal(M.sourceHeader("ac", true, ["ac"]), "PLUGGED IN");
+  assert.equal(M.sourceHeader("ac", true, ["battery", "ac"]), "PLUGGED IN  ·  NOW");
+  assert.equal(M.sourceHeader("battery", false, ["battery", "ac"]), "ON BATTERY");
+});
+
+test("bar mode stays off without a battery", () => {
+  assert.equal(M.nextBarMode("off", false), "off");
+  assert.equal(M.nextBarMode("gauge", false), "off");
+  assert.equal(M.nextBarMode("off", true), "percentage");
+});
+
+test("hero without a battery is about the active profile", () => {
+  assert.equal(M.heroTitle(true), "Battery");
+  assert.equal(M.heroTitle(false), "Power");
+  assert.equal(M.heroFallbackStatus({ isPresent: false }, false, STATES, "performance"), "Performance");
+  assert.equal(M.heroFallbackStatus({ isPresent: false }, false, STATES, "power-saver"), "Eco");
+  assert.equal(M.heroFallbackStatus(null, false, STATES, ""), "Plugged in");
+  assert.equal(M.heroFallbackStatus({ isPresent: true, percentage: 0.5, state: STATES.Discharging }, true, STATES, "balanced"), "On battery");
+});

@@ -30,6 +30,10 @@ Item {
   readonly property string source: onBattery ? "battery" : "ac"
   readonly property var device: UPower.displayDevice
   readonly property bool batteryPresent: !!(device && device.isPresent)
+  // False until the lid probe answered: fail closed, no inhibitor on a guess.
+  property bool lidPresent: false
+  property bool lidProbed: false
+  readonly property var hardware: Model.hardware(batteryPresent, lidPresent)
 
   property var rawSettings: ({})
   property var profiles: []
@@ -91,8 +95,8 @@ Item {
       return;
     readSettings();
     var applied = {};
-    for (var i = 0; i < Model.SOURCES.length; i++)
-      applied[Model.SOURCES[i]] = settings[Model.sourceKey(Model.SOURCES[i], "profile")];
+    for (var i = 0; i < hardware.sources.length; i++)
+      applied[hardware.sources[i]] = settings[Model.sourceKey(hardware.sources[i], "profile")];
     appliedProfile = applied;
     var config = shell && shell.shellConfig ? shell.shellConfig : null;
     var idle = config && config.idle && typeof config.idle === "object" ? config.idle : {};
@@ -108,7 +112,7 @@ Item {
     resolveServices();
     refreshCharge();
     syncLidInhibit();
-    log("settled", "source=" + source + " profile=" + strategy.profile + " idle=" + JSON.stringify(appliedIdle));
+    log("settled", "source=" + source + " battery=" + batteryPresent + " lid=" + lidPresent + " profile=" + strategy.profile + " idle=" + JSON.stringify(appliedIdle));
   }
 
   Timer {
@@ -225,9 +229,11 @@ Item {
     }
   }
 
+  // Only the sources this machine can be on: a desktop never persists a
+  // battery profile it cannot switch to.
   function syncProfiles() {
-    for (var i = 0; i < Model.SOURCES.length; i++)
-      syncProfile(Model.SOURCES[i]);
+    for (var i = 0; i < hardware.sources.length; i++)
+      syncProfile(hardware.sources[i]);
   }
 
   // ------------------------------------------------------------------- sleep
@@ -297,7 +303,21 @@ Item {
     return out;
   }
   readonly property bool externalScreen: Model.hasExternalScreen(screenNames)
-  readonly property var lidBehavior: Model.lidBehavior(settings.clamshell, externalScreen)
+  readonly property var lidBehavior: Model.lidBehavior(settings.clamshell, externalScreen, lidPresent)
+
+  // One probe at startup: a machine gains or loses a lid only with a reboot.
+  Process {
+    id: lidProbeProc
+    command: ["bash", "-c", "ls /proc/acpi/button/lid 2>/dev/null"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        root.lidPresent = Model.parseLidProbe(text);
+        root.lidProbed = true;
+        root.log("lid-probe", root.lidPresent ? "lid switch found" : "no lid switch");
+      }
+    }
+  }
   // Held by a child process, so it dies with the shell and can never strand
   // the laptop awake in a bag.
   readonly property bool lidInhibitWanted: settled && lidBehavior.inhibit
@@ -332,7 +352,11 @@ Item {
   }
 
   function cycleBarMode() {
-    setBarMode(Model.nextBarMode(settings.barMode));
+    if (!hardware.gauge) {
+      log("bar-mode", "no battery, nothing to show");
+      return;
+    }
+    setBarMode(Model.nextBarMode(settings.barMode, batteryPresent));
   }
 
   function setClamshell(enabled) {
@@ -360,6 +384,10 @@ Item {
   readonly property string chargeProbeScript: ['dev=$(upower -e 2>/dev/null | grep -m1 BAT) || exit 0', '[ -n "$dev" ] || exit 0', 'get() { busctl get-property org.freedesktop.UPower "$dev" org.freedesktop.UPower.Device "$1" 2>/dev/null | cut -d" " -f2; }', 'printf "supported\t%s\n" "$(get ChargeThresholdSupported)"', 'printf "settings\t%s\n" "$(get ChargeThresholdSettingsSupported)"', 'printf "enabled\t%s\n" "$(get ChargeThresholdEnabled)"', 'printf "start\t%s\n" "$(get ChargeStartThreshold)"', 'printf "end\t%s\n" "$(get ChargeEndThreshold)"'].join("\n")
 
   function refreshCharge() {
+    if (!hardware.chargeControl) {
+      chargeState = Model.parseChargeState("");
+      return;
+    }
     if (!chargeProc.running)
       chargeProc.running = true;
   }
@@ -445,6 +473,9 @@ Item {
     return JSON.stringify({
       source: root.source,
       batteryPresent: root.batteryPresent,
+      lidPresent: root.lidPresent,
+      lidProbed: root.lidProbed,
+      hardware: root.hardware,
       settled: root.settled,
       profiles: root.profiles,
       activeProfile: root.activeProfile,
@@ -478,6 +509,14 @@ Item {
 
   onShellChanged: readSettings()
 
+  // A battery appearing or going away (rare, hot-swap or a stale UPower read
+  // at boot) changes which sources exist and whether charge control is probed.
+  onBatteryPresentChanged: {
+    log("battery", batteryPresent ? "present" : "absent");
+    refreshCharge();
+    scheduleSync();
+  }
+
   Component.onDestruction: {
     if (lidInhibitProc.running)
       lidInhibitProc.running = false;
@@ -486,6 +525,7 @@ Item {
   Component.onCompleted: {
     readSettings();
     refreshProfiles();
+    lidProbeProc.running = true;
     settleTimer.start();
     log("service-ready", "source=" + source);
   }
