@@ -5,6 +5,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 
 ## [Unreleased]
 
+### Changed
+
+- Agent instructions (`CLAUDE.md`, `.claude/`) are no longer tracked. The marketplace security review flagged them as publisher-controlled instructions that an agent running in the installed plugin directory could execute. They stay on disk for contributors, ignored.
+
 ## [0.3.0] - 2026-09-07
 
 ### Changed

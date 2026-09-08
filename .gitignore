@@ -9,8 +9,9 @@
 .DS_Store
 *.swp
 
-# claude local state
-.claude/settings.local.json
+# agent instructions: local developer scaffolding, not part of the plugin
+CLAUDE.md
+.claude/
 
 # kit tooling: local developer scaffolding, not part of the plugin
 .kit/
